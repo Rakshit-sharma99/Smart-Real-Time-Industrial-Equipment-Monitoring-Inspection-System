@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import Role
+from equipment.models import Equipment
 
 from .testutils import make_admin, make_inspector
 
@@ -21,13 +22,23 @@ class AdminOnlyUrlMatrixTests(TestCase):
     def setUpTestData(cls):
         cls.admin = make_admin("asha")
         cls.inspector = make_inspector("ivan")
+        cls.equipment = Equipment.objects.create(
+            equipment_code="EQ-001", name="Pump", equipment_type="HYDRAULIC_PUMP", location="Bay"
+        )
 
     def admin_only_urls(self):
+        code = self.equipment.equipment_code
         return [
             reverse("accounts:user_list"),
             reverse("accounts:user_create"),
             reverse("accounts:user_edit", args=[self.inspector.pk]),
             reverse("accounts:user_password", args=[self.inspector.pk]),
+            reverse("equipment:create"),
+            reverse("equipment:edit", args=[code]),
+            reverse("equipment:thresholds", args=[code]),
+            reverse("equipment:label", args=[code]),
+            reverse("equipment:label_sheet") + f"?codes={code}",
+            reverse("equipment:qr_png", args=[code]) + "?download=1",
         ]
 
     def test_inspector_gets_403(self):
@@ -91,3 +102,6 @@ class SeedDemoTests(TestCase):
         self.assertEqual(inspector.profile.role, Role.INSPECTOR)
         self.assertTrue(inspector.check_password("Demo-pass-123"))
         self.assertTrue(User.objects.filter(username="inspector2_demo").exists())
+        self.assertEqual(Equipment.objects.count(), 6)
+        self.assertEqual(Equipment.objects.filter(is_active=False).count(), 1)
+        self.assertEqual(Equipment.objects.filter(sim_mode=Equipment.SimMode.DRIFT).count(), 1)

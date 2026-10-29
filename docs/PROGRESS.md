@@ -6,7 +6,7 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Setup, settings, base layout, auth, roles, error pages, seed users | Done |
-| 2 | Equipment CRUD, thresholds, QR | Not started |
+| 2 | Equipment CRUD, thresholds, QR | Done |
 | 3 | Readings, alerts, process_reading, ingest API, simulator | Not started |
 | 4 | Dashboard, live monitoring, WebSockets, polling fallback | Not started |
 | 5 | Alerts UI | Not started |

@@ -59,10 +59,10 @@
       <div class="table-wrap">
         <div class="table-responsive">
           <table class="table align-middle">
-            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Warning at</th><th scope="col" class="num">Critical at</th><th scope="col">Unit</th></tr></thead>
+            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Warning at</th><th scope="col" class="num">Critical at</th></tr></thead>
             <tbody>
               {% for metric, warn, crit in equipment.threshold_rows %}
-              <tr><td>{{ metric.label }}</td><td class="num">{{ warn }}</td><td class="num">{{ crit }}</td><td>{{ metric.unit }}</td></tr>
+              <tr><td>{{ metric.label }} <span class="text-body-secondary small">({{ metric.unit }})</span></td><td class="num">{{ warn }}</td><td class="num">{{ crit }}</td></tr>
               {% endfor %}
             </tbody>
           </table>

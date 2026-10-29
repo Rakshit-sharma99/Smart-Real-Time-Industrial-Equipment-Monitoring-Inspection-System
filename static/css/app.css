@@ -284,6 +284,7 @@ code, .font-mono { font-family: var(--ew-mono); }
 
 /* ---------- Cards, tables, toolbars ---------- */
 .card {
+  --bs-card-bg: var(--ew-surface);
   --bs-card-border-color: var(--ew-border);
   --bs-card-cap-bg: var(--ew-surface);
   --bs-card-border-radius: 8px;
@@ -469,6 +470,13 @@ a.kpi-tile:hover { border-color: #cbd5e1; color: var(--ew-text); }
 }
 .error-page > .bi { font-size: 2.5rem; color: var(--ew-muted); }
 .error-code { font-size: 2.5rem; font-weight: 700; margin: 0; color: var(--ew-text); }
+
+/* ---------- Equipment ---------- */
+.filter-bar .filter-search { flex: 2 1 220px; }
+.col-check { width: 44px; text-align: center; }
+.qr-image { width: 200px; height: 200px; max-width: 100%; image-rendering: pixelated; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); }
+.threshold-row { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: 12px; margin-bottom: 12px; }
+.threshold-legend { float: none; width: auto; font-size: 0.9375rem; font-weight: 600; margin-bottom: 8px; padding: 0; }
 
 /* ---------- Print ---------- */
 @media print {
