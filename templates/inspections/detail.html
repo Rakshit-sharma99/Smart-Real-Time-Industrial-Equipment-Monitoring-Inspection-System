@@ -17,6 +17,7 @@
     {% elif is_assignee and inspection.status == "IN_PROGRESS" %}
       <a class="btn btn-primary" href="{% url 'inspections:perform' inspection.pk %}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Continue inspection</a>
     {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'reports:inspection_pdf' inspection.pk %}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF report</a>
     <a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}">All inspections</a>
   </div>
 </div>

@@ -25,6 +25,7 @@
       <a class="btn btn-outline-secondary" href="{% url 'inspections:assign' %}?equipment={{ equipment.equipment_code }}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Assign inspection</a>
       <a class="btn btn-outline-secondary" href="{% url 'maintenance:create' %}?equipment={{ equipment.equipment_code }}"><i class="bi bi-tools" aria-hidden="true"></i> Create task</a>
     {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'reports:health_pdf' equipment.equipment_code %}?days=7"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Health report</a>
     {% if is_admin_user %}
       <a class="btn btn-outline-secondary" href="{% url 'equipment:edit' equipment.equipment_code %}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
       <a class="btn btn-outline-secondary" href="{% url 'equipment:thresholds' equipment.equipment_code %}"><i class="bi bi-sliders" aria-hidden="true"></i> Thresholds</a>

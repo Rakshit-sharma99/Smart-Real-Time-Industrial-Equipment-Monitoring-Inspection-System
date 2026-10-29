@@ -12,6 +12,7 @@ urlpatterns = [
     path("alerts/", include("monitoring.alert_urls")),
     path("inspections/", include("inspections.urls")),
     path("maintenance/", include("maintenance.urls")),
+    path("reports/", include("reports.urls")),
     path("api/v1/", include("config.api_urls")),
     path("", include("monitoring.urls")),
     path("", include("core.urls")),

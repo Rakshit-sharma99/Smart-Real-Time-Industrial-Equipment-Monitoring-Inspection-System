@@ -13,11 +13,11 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | 6 | Inspections, photos, defects | Done |
 | 7 | QR scanner page | Done |
 | 8 | Maintenance tasks | Done |
-| 9 | PDF reports | Not started |
+| 9 | PDF reports | Done |
 | 10 | PWA, polish, README, acceptance walkthrough | Not started |
 
 ## Next step
-Phase 9: PDF reports (inspection report, equipment health report), numbered canvas, access control.
+Phase 10: PWA (manifest, sw.js, icons, offline page), mobile pass, polish, README, full test run, acceptance walkthrough.
 
 ## How to resume
 1. `.venv\Scripts\activate`

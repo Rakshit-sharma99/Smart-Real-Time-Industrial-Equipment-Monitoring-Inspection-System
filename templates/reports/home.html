@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-5 order-lg-2">
+    <div class="card">
+      <div class="card-header">Equipment health report</div>
+      <div class="card-body">
+        <p class="small text-body-secondary">Readings summary (min / max / average), alerts, inspections and open maintenance tasks for one machine.</p>
+        <form method="get" id="healthReportForm" action="#" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="reportEquipment">Equipment</label>
+            <select class="form-select" id="reportEquipment" required>
+              {% for eq in equipment_list %}<option value="{% url 'reports:health_pdf' eq.equipment_code %}">{{ eq.equipment_code }} · {{ eq.name }}{% if not eq.is_active %} (inactive){% endif %}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="reportDays">Period (days)</label>
+            <input class="form-control" type="number" id="reportDays" name="days" min="1" max="{{ max_days }}" value="{{ default_days }}">
+            <div class="form-text">Last 1 to {{ max_days }} days. Default {{ default_days }}.</div>
+          </div>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i> Download PDF</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7 order-lg-1">
+    <div class="card">
+      <div class="card-header">Inspection reports {% if not is_admin_user %}<span class="small text-body-secondary fw-normal">(your inspections)</span>{% endif %}</div>
+      {% if inspections %}
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead><tr><th scope="col">Inspection</th><th scope="col">Equipment</th><th scope="col">Result</th><th scope="col">Submitted</th><th scope="col" class="text-end"><span class="visually-hidden">Download</span></th></tr></thead>
+            <tbody>
+              {% for ins in inspections %}
+              <tr>
+                <td class="text-nowrap"><a href="{% url 'inspections:detail' ins.pk %}">{{ ins.reference }}</a></td>
+                <td>{{ ins.equipment.equipment_code }}</td>
+                <td>{% include "partials/status_badge.html" with status=ins.overall_result label=ins.get_overall_result_display %}</td>
+                <td class="text-nowrap small">{{ ins.submitted_at|date:"d M Y, H:i" }}</td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'reports:inspection_pdf' ins.pk %}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">Latest 20 submitted inspections. Every inspection page also has a PDF button.</div>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-file-earmark-pdf" title="No submitted inspections yet" text="Reports appear here once an inspection is submitted." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Build the download URL from the chosen machine and number of days.
+  document.getElementById("healthReportForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    const url = document.getElementById("reportEquipment").value;
+    const days = document.getElementById("reportDays").value || "{{ default_days }}";
+    window.location.href = url + "?days=" + encodeURIComponent(days);
+  });
+</script>
+{% endblock %}

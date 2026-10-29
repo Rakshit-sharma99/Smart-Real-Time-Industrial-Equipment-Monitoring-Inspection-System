@@ -50,3 +50,7 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Conversion priority**: defect HIGH/MEDIUM/LOW -> task HIGH/MEDIUM/LOW; alert CRITICAL -> CRITICAL, WARNING -> MEDIUM (pre-filled, editable). The machine is locked to the source's machine.
 - **One status endpoint** (`/maintenance/<id>/status/`) handles every transition; the page only shows buttons for transitions `allowed_transitions()` returns, and the service re-checks.
 - **Dashboard task summary** counts tasks per status (visible to the user) plus open tasks past their due date.
+- **Reports page** (`/reports/`): lists the user's visible submitted inspections (latest 20) and a health-report form (equipment + days). Each inspection page and equipment page also has a PDF button.
+- **Health report contents follow visibility**: readings, alerts and thresholds are shown in full; the inspections and open-task sections use `visible_to(user)` (an inspector sees only their own).
+- **Health report period** is clamped to 1-90 days (invalid input -> 7). Filenames: `inspection_<code>_<submitted date>.pdf`, `health_<code>_<today>.pdf`, sanitised to `[A-Za-z0-9._-]`.
+- **PDF tests** build reports uncompressed (`compress=False`) so "Page X of Y" can be asserted in the raw bytes; downloads are compressed.
