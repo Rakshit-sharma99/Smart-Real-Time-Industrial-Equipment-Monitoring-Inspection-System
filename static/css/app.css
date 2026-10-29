@@ -62,6 +62,8 @@ body {
 }
 
 code, .font-mono { font-family: var(--ew-mono); }
+.form-control, .form-select, .dropdown-menu, .modal-content { background-color: var(--ew-surface); }
+.form-control:disabled, .form-select:disabled { background-color: #f3f4f6; }
 .text-muted, .text-body-secondary { color: var(--ew-muted) !important; }
 
 /* ---------- Buttons ---------- */
