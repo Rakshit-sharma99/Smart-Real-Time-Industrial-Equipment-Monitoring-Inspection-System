@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Maintenance</h2>
+    <p class="subtitle">{% if is_admin_user %}All maintenance tasks{% else %}Tasks assigned to you{% endif %} · {{ page_obj.paginator.count|default:0 }} shown</p>
+  </div>
+  {% if is_admin_user %}
+  <div class="page-actions">
+    <a class="btn btn-primary" href="{% url 'maintenance:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New task</a>
+  </div>
+  {% endif %}
+</div>
+
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.priority.id_for_label }}">Priority</label>{{ filter_form.priority }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'maintenance:list' %}">Reset</a>{% endif %}
+  </div>
+</form>
+
+{% if tasks %}
+  {% include "partials/table_wrapper.html" with table="maintenance/_table.html" %}
+  {% include "partials/pagination.html" %}
+{% else %}
+  {% if is_admin_user %}
+    {% url 'maintenance:create' as create_url %}
+    {% include "partials/empty_state.html" with icon="bi-tools" title="No tasks match" text="Create a task, or convert a defect or alert into one." action_url=create_url action_label="New task" %}
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-tools" title="No tasks match" text="Tasks an admin assigns to you appear here." %}
+  {% endif %}
+{% endif %}
+{% endblock %}

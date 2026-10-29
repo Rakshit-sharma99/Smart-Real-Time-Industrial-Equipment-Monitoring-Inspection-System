@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h2>{{ task.task_code }}</h2>
+      {% include "partials/status_badge.html" with status=task.status label=task.get_status_display %}
+      {% include "partials/status_badge.html" with status=task.priority label=task.get_priority_display %}
+    </div>
+    <p class="subtitle">{{ task.title }} · <a href="{{ task.equipment.get_absolute_url }}">{{ task.equipment.equipment_code }} · {{ task.equipment.name }}</a></p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-outline-secondary" href="{% url 'maintenance:list' %}">All tasks</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Details</div>
+      <div class="card-body">
+        <dl class="detail-list">
+          <dt>Assigned to</dt><dd>{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}{% else %}Unassigned{% endif %}</dd>
+          <dt>Due</dt><dd>{{ task.due_date|date:"d M Y"|default:"—" }}{% if task.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}</dd>
+          <dt>Created by</dt><dd>{{ task.created_by.get_full_name|default:task.created_by.username }}, {{ task.created_at|date:"d M Y, H:i" }}</dd>
+          {% if task.defect %}<dt>From defect</dt><dd>{{ task.defect.reference }} · {% include "partials/status_badge.html" with status=task.defect.status label=task.defect.get_status_display %} <a href="{% url 'inspections:detail' task.defect.inspection_id %}">view inspection</a></dd>{% endif %}
+          {% if task.alert %}<dt>From alert</dt><dd><a href="{% url 'alerts:detail' task.alert_id %}">{{ task.alert.reference }}</a> · {% include "partials/status_badge.html" with status=task.alert.status label=task.alert.get_status_display %}</dd>{% endif %}
+          {% if task.completed_at %}<dt>Completed</dt><dd>{{ task.completed_at|date:"d M Y, H:i" }}</dd>{% endif %}
+        </dl>
+        {% if task.description %}<hr><p class="mb-0">{{ task.description|linebreaksbr }}</p>{% endif %}
+        {% if task.resolution_notes %}<hr><p class="mb-1 fw-semibold">Resolution</p><p class="mb-0">{{ task.resolution_notes|linebreaksbr }}</p>{% endif %}
+      </div>
+    </div>
+
+    {% if allowed %}
+    <div class="card">
+      <div class="card-header">Next step</div>
+      <div class="card-body task-actions">
+        {% if "ASSIGNED" in allowed %}
+        <form method="post" action="{% url 'maintenance:change_status' task.pk %}" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="to_status" value="ASSIGNED">
+          {% include "partials/form_field.html" with field=assign_form.assignee %}
+          <button class="btn btn-primary" type="submit"><i class="bi bi-person-check" aria-hidden="true"></i> Assign</button>
+        </form>
+        {% endif %}
+        {% if "IN_PROGRESS" in allowed %}
+        <form method="post" action="{% url 'maintenance:change_status' task.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="to_status" value="IN_PROGRESS">
+          <button class="btn btn-primary" type="submit"><i class="bi bi-play-fill" aria-hidden="true"></i> Start work</button>
+        </form>
+        {% endif %}
+        {% if "OPEN" in allowed %}
+        <form method="post" action="{% url 'maintenance:change_status' task.pk %}" data-confirm="Unassign {{ task.task_code }}? It goes back to Open." data-confirm-button="Unassign">
+          {% csrf_token %}
+          <input type="hidden" name="to_status" value="OPEN">
+          <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-person-x" aria-hidden="true"></i> Unassign</button>
+        </form>
+        {% endif %}
+        {% if "COMPLETED" in allowed %}
+        <form method="post" action="{% url 'maintenance:change_status' task.pk %}" novalidate
+              data-confirm="Complete {{ task.task_code }}? Completed tasks cannot be reopened. Equipment health is recalculated from readings and open defects." data-confirm-button="Complete task" data-confirm-tone="primary">
+          {% csrf_token %}
+          <input type="hidden" name="to_status" value="COMPLETED">
+          {% include "partials/form_field.html" with field=complete_form.resolution_notes %}
+          <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Complete task</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% elif task.status != "COMPLETED" %}
+    <div class="alert alert-secondary"><i class="bi bi-info-circle" aria-hidden="true"></i> {% if task.status == "OPEN" %}Waiting for an admin to assign this task.{% else %}Only the assignee or an admin can move this task forward.{% endif %}</div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">History</div>
+      <div class="card-body">
+        <ol class="timeline">
+          {% for change in history %}
+          <li class="{% if change.to_status == 'COMPLETED' %}tone-healthy{% endif %}">
+            <span class="timeline-title">{% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}</span>
+            <span class="timeline-time">{{ change.changed_at|date:"d M Y, H:i" }} · {{ change.changed_by.get_full_name|default:change.changed_by.username|default:"system" }}</span>
+            {% if change.note %}<span class="timeline-note">{{ change.note }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

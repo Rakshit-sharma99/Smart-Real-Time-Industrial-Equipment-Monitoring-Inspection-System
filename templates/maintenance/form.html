@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-xl-7">
+    {% if defect %}
+      <div class="alert alert-info"><i class="bi bi-link-45deg" aria-hidden="true"></i> Converting defect <strong>{{ defect.reference }}</strong> ({{ defect.get_severity_display }}) from <a href="{% url 'inspections:detail' defect.inspection_id %}">{{ defect.inspection.reference }}</a>. The defect moves to <em>In maintenance</em> and closes when this task is completed.</div>
+    {% elif alert %}
+      <div class="alert alert-info"><i class="bi bi-link-45deg" aria-hidden="true"></i> Creating a task for alert <a href="{% url 'alerts:detail' alert.pk %}">{{ alert.reference }}</a>. The alert itself is not changed; resolve it separately.</div>
+    {% endif %}
+    <div class="card">
+      <div class="card-header">New maintenance task</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Create task</button>
+            <a class="btn btn-outline-secondary" href="{% url 'maintenance:list' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

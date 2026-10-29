@@ -1,0 +1,27 @@
+{# Task table. Expects `tasks`; optional hide_equipment. #}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">Task</th>
+      {% if not hide_equipment %}<th scope="col">Equipment</th>{% endif %}
+      <th scope="col">Title</th>
+      <th scope="col">Priority</th>
+      <th scope="col">Status</th>
+      <th scope="col">Assigned to</th>
+      <th scope="col">Due</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+    <tr>
+      <td class="text-nowrap"><a class="fw-semibold" href="{% url 'maintenance:detail' task.pk %}">{{ task.task_code }}</a></td>
+      {% if not hide_equipment %}<td><a href="{{ task.equipment.get_absolute_url }}">{{ task.equipment.equipment_code }}</a></td>{% endif %}
+      <td class="task-title">{{ task.title }}</td>
+      <td>{% include "partials/status_badge.html" with status=task.priority label=task.get_priority_display %}</td>
+      <td>{% include "partials/status_badge.html" with status=task.status label=task.get_status_display %}</td>
+      <td class="text-nowrap">{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}{% else %}<span class="text-body-secondary">Unassigned</span>{% endif %}</td>
+      <td class="text-nowrap small{% if task.is_overdue %} text-danger fw-semibold{% endif %}">{{ task.due_date|date:"d M Y"|default:"—" }}{% if task.is_overdue %} · overdue{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
