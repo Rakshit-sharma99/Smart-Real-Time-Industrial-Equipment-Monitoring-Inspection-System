@@ -16,6 +16,7 @@ class NavItem:
 NAV_ITEMS = [
     NavItem("overview", "Overview", "bi-grid-1x2", "core:dashboard"),
     NavItem("equipment", "Equipment", "bi-hdd-stack", "equipment:list"),
+    NavItem("live", "Live Monitoring", "bi-broadcast", "monitoring:live"),
     NavItem("settings", "Settings", "bi-gear", "core:settings"),
 ]
 

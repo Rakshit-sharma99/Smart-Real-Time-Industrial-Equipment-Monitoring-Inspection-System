@@ -15,6 +15,7 @@ from functools import partial
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from core.permissions import is_admin
@@ -192,6 +193,30 @@ def resolve_alert(alert, user, notes):
         alert.save(update_fields=["status", "resolved_by", "resolved_at", "resolution_notes"])
         transaction.on_commit(partial(broadcast.broadcast_alert, "resolved", alert))
     return alert
+
+
+# --- Read helpers ----------------------------------------------------------------------
+
+
+def latest_readings(equipment_list):
+    """
+    {equipment_pk: latest SensorReading} for several machines in ONE query.
+    Works because process_reading() sets last_reading_at to the newest reading's time.
+    """
+    readings = SensorReading.objects.filter(
+        equipment__in=equipment_list, recorded_at=F("equipment__last_reading_at")
+    ).order_by("-id")
+    latest = {}
+    for reading in readings:
+        latest.setdefault(reading.equipment_id, reading)
+    return latest
+
+
+def reading_values(reading):
+    """Metric values keyed like the WebSocket payload: {"temperature": "49.04", ...}."""
+    if reading is None:
+        return None
+    return {metric.key: str(reading.value_for(metric)) for metric in METRICS}
 
 
 # --- Simulator bookkeeping -------------------------------------------------------------

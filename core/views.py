@@ -3,12 +3,25 @@ from django.shortcuts import redirect, render
 from django.template import loader
 
 from accounts.models import Role
+from equipment.models import Equipment
+from monitoring.models import Alert
+from monitoring.services import latest_readings
 
 from .permissions import get_role
+from .services import dashboard_summary
 
 
 def dashboard(request):
-    return render(request, "core/dashboard.html", {"page_title": "Overview"})
+    machines = list(Equipment.objects.active())
+    latest = latest_readings(machines)
+    context = {
+        "page_title": "Overview",
+        "summary": dashboard_summary(request.user),
+        "equipment_rows": [{"equipment": eq, "reading": latest.get(eq.pk)} for eq in machines],
+        "recent_alerts": Alert.objects.select_related("equipment")[:6],
+        "trend_machines": machines,
+    }
+    return render(request, "core/dashboard.html", context)
 
 
 def settings_home(request):

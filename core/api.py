@@ -1,5 +1,8 @@
-"""Shared helpers for the JSON API."""
-from rest_framework.views import exception_handler
+"""Shared helpers for the JSON API, plus the dashboard summary endpoint."""
+from rest_framework.response import Response
+from rest_framework.views import APIView, exception_handler
+
+from .services import dashboard_summary
 
 
 def json_exception_handler(exc, context):
@@ -19,3 +22,10 @@ def json_exception_handler(exc, context):
     else:
         response.data = {"error": "Validation failed.", "details": data}
     return response
+
+
+class DashboardSummaryView(APIView):
+    """GET /api/v1/dashboard/summary/ - KPI counts (used by the polling fallback)."""
+
+    def get(self, request):
+        return Response(dashboard_summary(request.user))

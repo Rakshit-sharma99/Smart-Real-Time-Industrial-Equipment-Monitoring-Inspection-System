@@ -4,19 +4,82 @@ import hmac
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from equipment.metrics import METRICS
 from equipment.models import Equipment
 
 from . import services
 
 SIMULATOR_AUTH = "simulator-token"
 MAX_BATCH = 100
+DEFAULT_READINGS = 60
+MAX_READINGS = 500
+
+
+def equipment_status_item(equipment, reading):
+    return {
+        "code": equipment.equipment_code,
+        "name": equipment.name,
+        "location": equipment.location,
+        "status": equipment.display_status,
+        "status_label": equipment.display_status_label,
+        "last_reading_at": equipment.last_reading_at.isoformat() if equipment.last_reading_at else None,
+        "values": services.reading_values(reading),
+    }
+
+
+def thresholds_payload(equipment):
+    return {
+        metric.key: {"label": metric.label, "unit": metric.unit, "warn": str(warn), "crit": str(crit)}
+        for metric, warn, crit in equipment.threshold_rows()
+    }
+
+
+class EquipmentStatusView(APIView):
+    """GET /api/v1/equipment/status/ - every active machine with its status and latest values."""
+
+    def get(self, request):
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(Equipment.objects.active(), request, view=self)
+        latest = services.latest_readings(page)
+        items = [equipment_status_item(equipment, latest.get(equipment.pk)) for equipment in page]
+        return paginator.get_paginated_response(items)
+
+
+class EquipmentReadingsView(APIView):
+    """GET /api/v1/equipment/<code>/readings/?limit=60 - recent readings, oldest first (for charts)."""
+
+    def get(self, request, code):
+        equipment = get_object_or_404(Equipment, equipment_code=code)
+        try:
+            limit = int(request.query_params.get("limit", DEFAULT_READINGS))
+        except ValueError:
+            limit = DEFAULT_READINGS
+        limit = max(1, min(limit, MAX_READINGS))
+        readings = list(equipment.readings.order_by("-recorded_at", "-id")[:limit])
+        readings.reverse()
+        return Response({
+            "equipment": {
+                "code": equipment.equipment_code,
+                "name": equipment.name,
+                "status": equipment.display_status,
+                "status_label": equipment.display_status_label,
+            },
+            "thresholds": thresholds_payload(equipment),
+            "readings": [
+                {"recorded_at": r.recorded_at.isoformat(), "source": r.source,
+                 **{metric.key: str(r.value_for(metric)) for metric in METRICS}}
+                for r in readings
+            ],
+        })
 
 
 class SimulatorTokenAuthentication(BaseAuthentication):

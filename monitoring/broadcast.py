@@ -11,6 +11,7 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+from equipment.metrics import METRICS
 from equipment.models import Equipment
 
 from .models import Alert
@@ -47,11 +48,7 @@ def reading_message(reading, equipment, summary):
             "name": equipment.name,
             "status": equipment.display_status,
         },
-        "values": {
-            "temperature": str(reading.temperature_c),
-            "vibration": str(reading.vibration_mm_s),
-            "pressure": str(reading.pressure_bar),
-        },
+        "values": {metric.key: str(reading.value_for(metric)) for metric in METRICS},
         "recorded_at": reading.recorded_at.isoformat(),
         "source": reading.source,
         "summary": summary,
