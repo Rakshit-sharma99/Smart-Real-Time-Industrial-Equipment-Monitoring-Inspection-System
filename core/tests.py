@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from accounts.models import Role
 from equipment.models import Equipment
+from inspections.models import Inspection
 from monitoring.models import Alert, SensorReading
 
 from .testutils import make_admin, make_inspector
@@ -41,6 +42,9 @@ class AdminOnlyUrlMatrixTests(TestCase):
             reverse("equipment:label_sheet") + f"?codes={code}",
             reverse("equipment:qr_png", args=[code]) + "?download=1",
             reverse("monitoring:simulator_settings"),
+            reverse("inspections:assign"),
+            reverse("inspections:template_list"),
+            reverse("inspections:template_create"),
         ]
 
     def test_inspector_cannot_post_admin_actions(self):
@@ -126,6 +130,10 @@ class SeedDemoTests(TestCase):
         # 24 h at 5-minute steps for each machine (run twice above: no duplicates)
         self.assertEqual(SensorReading.objects.count(), 6 * 288)
         self.assertEqual(Alert.objects.filter(status=Alert.Status.RESOLVED).count(), 1)
+        self.assertEqual(Inspection.objects.filter(status=Inspection.Status.ASSIGNED).count(), 2)
+        submitted = Inspection.objects.get(status=Inspection.Status.SUBMITTED)
+        self.assertEqual(submitted.overall_result, Inspection.Result.FAIL)
+        self.assertEqual(submitted.defects.count(), 1)
 
     @override_settings(DEBUG=True, DEMO_PASSWORD="Demo-pass-123")
     def test_reset_recreates_cleanly(self):

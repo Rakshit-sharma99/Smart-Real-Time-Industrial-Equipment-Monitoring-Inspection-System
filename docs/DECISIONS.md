@@ -31,3 +31,12 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Inline acknowledge** buttons on the alerts list return to the same filtered page (`next` is checked with `url_has_allowed_host_and_scheme`).
 - **Sidebar alert badge** shows the open-alert count and updates live from the WebSocket summary.
 - **Browser 404 checks**: with DEBUG=True Django shows its technical 404 page, so the custom 404 template is verified by the test suite (which runs with DEBUG=False), not in the dev browser.
+- **"Open" defect for health = not CLOSED**: OPEN and IN_MAINTENANCE HIGH defects both raise HEALTHY to WARNING, so a machine stays flagged until its maintenance task is completed.
+- **Template choice**: a machine uses the active template for its type; if none, an active general template (blank type). The same rule pre-fills the Assign form and drives ad-hoc starts.
+- **Assignees** can be any active inspector or admin (admins may also be assigned). Ad-hoc starts are for inspectors only.
+- **Starting snapshots the checklist**: an ASSIGNED inspection has no response rows until the assignee presses Start; then the template's items are copied.
+- **Save vs submit**: Save progress stores answers/photos (per-item rules still apply: remarks for Fail / Needs attention). Submit additionally needs every item answered and at least one non-N/A answer; if that fails the answers are kept and the problems listed.
+- **Admins can view any inspection but only the assignee can perform it** (403 for an admin who is not the assignee; 404 for other inspectors).
+- **Photos**: validated with Pillow (not the file name), rotated by EXIF orientation, re-saved as JPEG (quality 85, max 1600 px) without metadata; replacing a photo deletes the old file. Served only via `/inspections/photos/<response_id>/` with the same `visible_to(user)` check.
+- **Defects page** lives under Inspections (tab) and shows defects from inspections the user can see.
+- **Checklist templates** are managed under Settings; they are deactivated rather than deleted (inspections reference them).
