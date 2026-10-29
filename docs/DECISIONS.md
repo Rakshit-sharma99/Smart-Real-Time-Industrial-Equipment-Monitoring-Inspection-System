@@ -26,3 +26,8 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Offline in the browser**: a machine badge turns OFFLINE client-side when its last reading is older than `OFFLINE_AFTER_SECONDS`; KPI counts are refreshed from the API every 30 s while live.
 - **Charts use a category x-axis** (formatted times) so no Chart.js date adapter is needed; gaps in data are not drawn to scale.
 - **Measurements are rounded to 2 decimals** in `process_reading()` so stored, broadcast and API values match.
+- **Alerts list defaults to open alerts** (ACTIVE + ACKNOWLEDGED); "All statuses" shows history. The same filter form drives `GET /api/v1/alerts/`.
+- **Alert API conflicts return 409** (e.g. acknowledging an alert that is not ACTIVE, resolving a resolved alert); missing resolution notes return 400.
+- **Inline acknowledge** buttons on the alerts list return to the same filtered page (`next` is checked with `url_has_allowed_host_and_scheme`).
+- **Sidebar alert badge** shows the open-alert count and updates live from the WebSocket summary.
+- **Browser 404 checks**: with DEBUG=True Django shows its technical 404 page, so the custom 404 template is verified by the test suite (which runs with DEBUG=False), not in the dev browser.

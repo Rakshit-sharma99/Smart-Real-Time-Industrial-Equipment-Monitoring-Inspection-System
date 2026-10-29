@@ -38,6 +38,7 @@ def equipment_detail(request, code):
         "latest_reading": latest,
         "metric_cards": services.metric_rows(equipment, latest),
         "recent_readings": readings[:20],
+        "alerts": equipment.alerts.select_related("equipment")[:20],
         "page_title": equipment.equipment_code,
     }
     return render(request, "equipment/detail.html", context)

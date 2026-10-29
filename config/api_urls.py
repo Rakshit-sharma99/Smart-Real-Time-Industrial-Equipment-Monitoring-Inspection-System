@@ -28,4 +28,7 @@ urlpatterns = [
         api_view(monitoring_api.EquipmentReadingsView),
         name="equipment_readings",
     ),
+    path("alerts/", api_view(monitoring_api.AlertListApiView), name="alerts"),
+    path("alerts/<int:pk>/acknowledge/", api_view(monitoring_api.AlertAcknowledgeApiView), name="alert_acknowledge"),
+    path("alerts/<int:pk>/resolve/", api_view(monitoring_api.AlertResolveApiView), name="alert_resolve"),
 ]

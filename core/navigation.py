@@ -9,6 +9,7 @@ class NavItem:
     icon: str  # Bootstrap Icons class
     url_name: str
     admin_only: bool = False
+    badge_kpi: str = ""  # optional live count shown next to the label (a summary key)
 
 
 # Sidebar order from the spec. Both roles can use every section; what they can
@@ -17,6 +18,7 @@ NAV_ITEMS = [
     NavItem("overview", "Overview", "bi-grid-1x2", "core:dashboard"),
     NavItem("equipment", "Equipment", "bi-hdd-stack", "equipment:list"),
     NavItem("live", "Live Monitoring", "bi-broadcast", "monitoring:live"),
+    NavItem("alerts", "Alerts", "bi-bell", "alerts:list", badge_kpi="active_alerts"),
     NavItem("settings", "Settings", "bi-gear", "core:settings"),
 ]
 

@@ -112,10 +112,21 @@
       const value = summary[el.dataset.kpi];
       if (value === undefined || String(value) === el.textContent.trim()) return;
       el.textContent = value;
+      if (el.hasAttribute("data-hide-zero")) el.hidden = Number(value) === 0;
       el.classList.remove("flash");
       void el.offsetWidth; // restart the CSS animation
       el.classList.add("flash");
     });
+  }
+
+  function applyAlert(message) {
+    const a = message.alert;
+    document.querySelectorAll('[data-alert-id="' + a.id + '"]').forEach(function (row) {
+      EW.setBadge(row.querySelector(".js-alert-severity .status-badge"), a.severity);
+      EW.setBadge(row.querySelector(".js-alert-status .status-badge"), a.status);
+    });
+    const notice = document.getElementById("newAlertsNotice");
+    if (notice && message.event === "created") notice.hidden = false;
   }
 
   function dispatch(message) {
@@ -129,7 +140,10 @@
       applyStatus(message.equipment.code, message.equipment.status, message.recorded_at);
       applyValues(message.equipment.code, message.values);
     }
-    if (message.type === "alert") showAlertToast(message);
+    if (message.type === "alert") {
+      applyAlert(message);
+      showAlertToast(message);
+    }
     applySummary(message.summary);
     dispatch(message);
   }

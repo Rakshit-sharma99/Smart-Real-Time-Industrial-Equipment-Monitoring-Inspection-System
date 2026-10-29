@@ -1,6 +1,7 @@
 from django.conf import settings
 
 from accounts.models import Role
+from monitoring.models import Alert
 
 from .navigation import active_section, nav_items_for
 from .permissions import get_role
@@ -18,5 +19,6 @@ def app_context(request):
         "is_admin_user": is_admin_user,
         "nav_items": nav_items_for(is_admin_user) if role else [],
         "nav_active": active_section(request),
+        "nav_badges": {"active_alerts": Alert.objects.open().count()} if role else {},
         "offline_after_seconds": settings.OFFLINE_AFTER_SECONDS,
     }

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2" data-alert-id="{{ alert.pk }}">
+      <h2>{{ alert.reference }} · {{ alert.metric_info.label }} alert</h2>
+      <span class="js-alert-severity">{% include "partials/status_badge.html" with status=alert.severity label=alert.get_severity_display %}</span>
+      <span class="js-alert-status">{% include "partials/status_badge.html" with status=alert.status label=alert.get_status_display %}</span>
+    </div>
+    <p class="subtitle">
+      <a href="{{ alert.equipment.get_absolute_url }}">{{ alert.equipment.equipment_code }} · {{ alert.equipment.name }}</a> · {{ alert.equipment.location }}
+    </p>
+  </div>
+  <div class="page-actions">
+    {% if alert.status == "ACTIVE" %}
+    <form method="post" action="{% url 'alerts:acknowledge' alert.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Acknowledge</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'alerts:list' %}">All alerts</a>
+  </div>
+</div>
+
+<div class="sim-note"><i class="bi bi-cpu" aria-hidden="true"></i> Raised from <strong>simulated</strong> sensor data. This is a demo alert, not a real emergency.</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">What happened</div>
+      <div class="card-body">
+        <p>{{ alert.description }}</p>
+        <div class="value-strip">
+          <div><span class="value-label">First</span><span class="value-num">{{ alert.first_value }}</span></div>
+          <div><span class="value-label">Peak</span><span class="value-num">{{ alert.peak_value }}</span></div>
+          <div><span class="value-label">Latest</span><span class="value-num">{{ alert.last_value }}</span></div>
+          <div><span class="value-label">Limit crossed</span><span class="value-num">{{ alert.threshold_value }}</span></div>
+        </div>
+        <p class="small text-body-secondary mt-2 mb-0">Values in {{ alert.metric_info.unit }}.{% if alert.is_open %} Recovery: {{ alert.normal_streak }} of 3 consecutive normal readings (each at least 5 % below the warning limit).{% endif %}</p>
+      </div>
+    </div>
+
+    {% if is_admin_user and alert.is_open %}
+    <div class="card">
+      <div class="card-header">Resolve</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'alerts:resolve' alert.pk %}" novalidate
+              data-confirm="Resolve {{ alert.reference }}? Resolved alerts cannot be reopened; a new breach creates a new alert." data-confirm-button="Resolve" data-confirm-tone="primary">
+          {% csrf_token %}
+          {% include "partials/form_field.html" with field=resolve_form.resolution_notes %}
+          <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Resolve alert</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Timeline</div>
+      <div class="card-body">
+        <ol class="timeline">
+          <li><span class="timeline-title">Raised as {% if alert.escalated_at %}Warning{% else %}{{ alert.get_severity_display }}{% endif %}</span><span class="timeline-time">{{ alert.created_at|date:"d M Y, H:i:s" }}</span></li>
+          {% if alert.escalated_at %}<li class="tone-critical"><span class="timeline-title">Escalated to Critical</span><span class="timeline-time">{{ alert.escalated_at|date:"d M Y, H:i:s" }}</span></li>{% endif %}
+          <li><span class="timeline-title">Last breach seen</span><span class="timeline-time">{{ alert.last_seen_at|date:"d M Y, H:i:s" }}</span></li>
+          {% if alert.acknowledged_at %}<li><span class="timeline-title">Acknowledged by {{ alert.acknowledged_by.get_full_name|default:alert.acknowledged_by.username|default:"a deleted user" }}</span><span class="timeline-time">{{ alert.acknowledged_at|date:"d M Y, H:i:s" }}</span></li>{% endif %}
+          {% if alert.resolved_at %}
+          <li class="tone-healthy">
+            <span class="timeline-title">Resolved {% if alert.resolved_by %}by {{ alert.resolved_by.get_full_name|default:alert.resolved_by.username }}{% else %}automatically{% endif %}</span>
+            <span class="timeline-time">{{ alert.resolved_at|date:"d M Y, H:i:s" }}</span>
+            <span class="timeline-note">{{ alert.resolution_notes }}</span>
+          </li>
+          {% endif %}
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

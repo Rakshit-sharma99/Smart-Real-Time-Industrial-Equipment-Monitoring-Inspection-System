@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Alerts</h2>
+    <p class="subtitle">{{ page_obj.paginator.count|default:0 }} alert{{ page_obj.paginator.count|pluralize }} · raised automatically from simulated sensor data</p>
+  </div>
+</div>
+
+<div class="alert alert-info d-flex align-items-center justify-content-between gap-2" id="newAlertsNotice" hidden>
+  <span><i class="bi bi-bell" aria-hidden="true"></i> New alerts have arrived.</span>
+  <a class="btn btn-sm btn-primary" href="{{ request.get_full_path }}">Refresh list</a>
+</div>
+
+<form class="filter-bar" method="get" role="search">
+  <div class="filter-search"><label class="form-label" for="{{ filter_form.q.id_for_label }}">Search</label>{{ filter_form.q }}</div>
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.severity.id_for_label }}">Severity</label>{{ filter_form.severity }}</div>
+  <div><label class="form-label" for="{{ filter_form.metric.id_for_label }}">Metric</label>{{ filter_form.metric }}</div>
+  <div><label class="form-label" for="{{ filter_form.equipment.id_for_label }}">Equipment</label>{{ filter_form.equipment }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'alerts:list' %}">Reset</a>{% endif %}
+  </div>
+</form>
+
+{% if alerts %}
+  {% include "partials/table_wrapper.html" with table="alerts/_table.html" show_actions=True %}
+  {% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-bell-slash" title="No alerts match" text="Open alerts appear here when a reading crosses a warning or critical limit. Try 'All statuses' to see history." %}
+{% endif %}
+{% endblock %}

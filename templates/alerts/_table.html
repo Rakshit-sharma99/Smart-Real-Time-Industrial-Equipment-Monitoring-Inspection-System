@@ -1,0 +1,40 @@
+{# Alert table. Used on the alerts page and the equipment page. Expects `alerts`; optional show_actions, hide_equipment. #}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">Alert</th>
+      {% if not hide_equipment %}<th scope="col">Equipment</th>{% endif %}
+      <th scope="col">Metric</th>
+      <th scope="col">Severity</th>
+      <th scope="col">Status</th>
+      <th scope="col" class="num">Peak / limit</th>
+      <th scope="col">Raised</th>
+      {% if show_actions %}<th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for alert in alerts %}
+    <tr data-alert-id="{{ alert.pk }}">
+      <td class="text-nowrap"><a class="fw-semibold" href="{% url 'alerts:detail' alert.pk %}">{{ alert.reference }}</a></td>
+      {% if not hide_equipment %}<td><a href="{{ alert.equipment.get_absolute_url }}">{{ alert.equipment.equipment_code }}</a><div class="small text-body-secondary text-truncate cell-sub">{{ alert.equipment.name }}</div></td>{% endif %}
+      <td>{{ alert.metric_info.label }}</td>
+      <td class="js-alert-severity">{% include "partials/status_badge.html" with status=alert.severity label=alert.get_severity_display %}</td>
+      <td class="js-alert-status">{% include "partials/status_badge.html" with status=alert.status label=alert.get_status_display %}</td>
+      <td class="num text-nowrap">{{ alert.peak_value }} / {{ alert.threshold_value }} <span class="small text-body-secondary">{{ alert.metric_info.unit }}</span></td>
+      <td class="text-nowrap small text-body-secondary" title="{{ alert.created_at|date:'d M Y, H:i:s' }}">{{ alert.created_at|timesince }} ago</td>
+      {% if show_actions %}
+      <td class="text-end text-nowrap">
+        {% if alert.status == "ACTIVE" %}
+        <form class="d-inline" method="post" action="{% url 'alerts:acknowledge' alert.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Acknowledge</button>
+        </form>
+        {% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'alerts:detail' alert.pk %}">View</a>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

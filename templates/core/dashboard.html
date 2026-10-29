@@ -8,7 +8,8 @@
   {% include "partials/kpi_tile.html" with label="Warning" value=summary.warning icon="bi-exclamation-triangle" tone="warning" kpi="warning" href=equipment_url|add:"?status=WARNING" %}
   {% include "partials/kpi_tile.html" with label="Critical" value=summary.critical icon="bi-x-octagon" tone="critical" kpi="critical" href=equipment_url|add:"?status=CRITICAL" %}
   {% include "partials/kpi_tile.html" with label="Offline" value=summary.offline icon="bi-wifi-off" tone="neutral" kpi="offline" href=equipment_url|add:"?status=OFFLINE" %}
-  {% include "partials/kpi_tile.html" with label="Active alerts" value=summary.active_alerts icon="bi-bell" tone="critical" kpi="active_alerts" %}
+  {% url 'alerts:list' as alerts_url %}
+  {% include "partials/kpi_tile.html" with label="Active alerts" value=summary.active_alerts icon="bi-bell" tone="critical" kpi="active_alerts" href=alerts_url %}
 </section>
 
 <div class="row g-3">
@@ -81,20 +82,21 @@
   </div>
   <div class="col-xl-5">
     <div class="card">
-      <div class="card-header">Recent alerts</div>
+      <div class="card-header">Recent alerts <a class="btn btn-sm btn-outline-secondary" href="{% url 'alerts:list' %}?status=all">View all</a></div>
       {% if recent_alerts %}
-      <ul class="list-group list-group-flush">
+      <ul class="list-group list-group-flush" id="recentAlerts">
         {% for alert in recent_alerts %}
-        <li class="list-group-item alert-row">
+        <li class="list-group-item alert-row" data-alert-id="{{ alert.pk }}">
           <div class="d-flex justify-content-between gap-2">
             <div class="min-w-0">
+              <a class="fw-semibold" href="{% url 'alerts:detail' alert.pk %}">{{ alert.reference }}</a>
               <span class="fw-semibold">{{ alert.equipment.equipment_code }}</span>
               <span class="text-body-secondary">· {{ alert.metric_info.label }} {{ alert.peak_value }} {{ alert.metric_info.unit }}</span>
               <div class="small text-body-secondary">{{ alert.created_at|timesince }} ago</div>
             </div>
             <div class="text-end d-flex flex-column align-items-end gap-1">
-              {% include "partials/status_badge.html" with status=alert.severity label=alert.get_severity_display %}
-              {% include "partials/status_badge.html" with status=alert.status label=alert.get_status_display %}
+              <span class="js-alert-severity">{% include "partials/status_badge.html" with status=alert.severity label=alert.get_severity_display %}</span>
+              <span class="js-alert-status">{% include "partials/status_badge.html" with status=alert.status label=alert.get_status_display %}</span>
             </div>
           </div>
         </li>

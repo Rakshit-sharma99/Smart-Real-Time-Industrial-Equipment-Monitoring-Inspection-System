@@ -9,14 +9,17 @@ from rest_framework import serializers, status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.permissions import IsAdminRole
 from equipment.metrics import METRICS
 from equipment.models import Equipment
 
 from . import services
+from .forms import AlertFilterForm
+from .models import Alert
 
 SIMULATOR_AUTH = "simulator-token"
 MAX_BATCH = 100
@@ -164,3 +167,70 @@ class IngestView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response({"accepted": accepted, "rejected": rejected}, status=status.HTTP_201_CREATED)
+
+
+# --- Alerts ------------------------------------------------------------------------
+
+
+def alert_item(alert):
+    return {
+        "id": alert.pk,
+        "reference": alert.reference,
+        "equipment": {"code": alert.equipment.equipment_code, "name": alert.equipment.name},
+        "metric": alert.metric,
+        "severity": alert.severity,
+        "status": alert.status,
+        "first_value": str(alert.first_value),
+        "last_value": str(alert.last_value),
+        "peak_value": str(alert.peak_value),
+        "threshold_value": str(alert.threshold_value),
+        "description": alert.description,
+        "created_at": alert.created_at.isoformat(),
+        "last_seen_at": alert.last_seen_at.isoformat(),
+        "escalated_at": alert.escalated_at.isoformat() if alert.escalated_at else None,
+        "acknowledged_at": alert.acknowledged_at.isoformat() if alert.acknowledged_at else None,
+        "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+        "resolution_notes": alert.resolution_notes,
+    }
+
+
+class AlertListApiView(APIView):
+    """GET /api/v1/alerts/?status=open|all|ACTIVE|...&severity=&metric=&equipment=EQ-001"""
+
+    def get(self, request):
+        form = AlertFilterForm(request.query_params or {"status": "open"})
+        alerts = form.filter(Alert.objects.select_related("equipment"))
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(alerts, request, view=self)
+        return paginator.get_paginated_response([alert_item(alert) for alert in page])
+
+
+class AlertAcknowledgeApiView(APIView):
+    """POST /api/v1/alerts/<id>/acknowledge/ - any logged-in role."""
+
+    def post(self, request, pk):
+        alert = get_object_or_404(Alert, pk=pk)
+        try:
+            alert = services.acknowledge_alert(alert, request.user)
+        except services.AlertActionError as exc:
+            return Response({"error": str(exc), "details": {}}, status=status.HTTP_409_CONFLICT)
+        return Response(alert_item(alert))
+
+
+class AlertResolveApiView(APIView):
+    """POST /api/v1/alerts/<id>/resolve/  {"resolution_notes": "..."} - admins only."""
+
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, pk):
+        alert = get_object_or_404(Alert, pk=pk)
+        try:
+            alert = services.resolve_alert(alert, request.user, request.data.get("resolution_notes", ""))
+        except ValidationError as exc:
+            return Response(
+                {"error": "Resolution notes are required.", "details": exc.message_dict},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except services.AlertActionError as exc:
+            return Response({"error": str(exc), "details": {}}, status=status.HTTP_409_CONFLICT)
+        return Response(alert_item(alert))

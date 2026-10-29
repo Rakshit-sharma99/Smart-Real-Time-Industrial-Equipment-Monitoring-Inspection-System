@@ -9,7 +9,7 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | 2 | Equipment CRUD, thresholds, QR | Done |
 | 3 | Readings, alerts, process_reading, ingest API, simulator | Done |
 | 4 | Dashboard, live monitoring, WebSockets, polling fallback | Done |
-| 5 | Alerts UI | Not started |
+| 5 | Alerts UI | Done |
 | 6 | Inspections, photos, defects | Not started |
 | 7 | QR scanner page | Not started |
 | 8 | Maintenance tasks | Not started |
@@ -17,7 +17,7 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | 10 | PWA, polish, README, acceptance walkthrough | Not started |
 
 ## Next step
-Phase 5: alerts UI (list, filters, detail, acknowledge, resolve) + alerts API endpoints.
+Phase 6: inspection templates, assignment, start/save/submit, photos, result rule, defects, ad-hoc start.
 
 ## How to resume
 1. `.venv\Scripts\activate`

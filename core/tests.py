@@ -49,6 +49,7 @@ class AdminOnlyUrlMatrixTests(TestCase):
         for url in [
             reverse("equipment:set_active", args=[code]),
             reverse("monitoring:set_sim_mode", args=[code]),
+            reverse("alerts:resolve", args=[1]),
         ]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.post(url, {"active": "0", "sim_mode": "OFFLINE"}).status_code, 403)

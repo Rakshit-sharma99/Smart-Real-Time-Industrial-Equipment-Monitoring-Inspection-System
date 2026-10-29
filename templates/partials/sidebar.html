@@ -1,4 +1,4 @@
-<aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
+{% load ui %}<aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
   <div class="sidebar-inner">
     <div class="sidebar-brand">
       <i class="bi bi-activity" aria-hidden="true"></i>
@@ -9,6 +9,7 @@
       {% for item in nav_items %}
         <a class="sidebar-link{% if nav_active == item.key %} active{% endif %}" href="{% url item.url_name %}"{% if nav_active == item.key %} aria-current="page"{% endif %}>
           <i class="bi {{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>
+          {% if item.badge_kpi %}{% with count=nav_badges|lookup:item.badge_kpi %}<span class="nav-count" data-kpi="{{ item.badge_kpi }}" data-hide-zero{% if not count %} hidden{% endif %} aria-label="{{ count }} open">{{ count }}</span>{% endwith %}{% endif %}
         </a>
       {% endfor %}
     </nav>

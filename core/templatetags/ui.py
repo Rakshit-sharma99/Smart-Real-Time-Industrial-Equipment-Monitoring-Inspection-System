@@ -59,3 +59,9 @@ def status_icon(value):
 def humanize_status(value):
     """'NEEDS_ATTENTION' -> 'Needs attention'."""
     return str(value).replace("_", " ").capitalize()
+
+
+@register.filter
+def lookup(mapping, key):
+    """{{ my_dict|lookup:key }} - dictionary access with a variable key."""
+    return mapping.get(key, "") if mapping else ""

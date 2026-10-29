@@ -487,3 +487,134 @@ class LivePagesTests(TestCase):
         self.assertContains(response, 'data-selected="EQ-001"')
         self.assertContains(response, 'data-metric="pressure"')
         self.assertContains(response, "72.00")
+
+
+class AlertPageTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = make_admin()
+        cls.inspector = make_inspector()
+        cls.machine = make_machine()
+
+    def setUp(self):
+        send(self.machine, temperature=80)
+        self.alert = Alert.objects.get()
+
+    def test_list_shows_open_alerts_by_default(self):
+        old = Alert.objects.create(
+            equipment=self.machine, metric="vibration", severity="WARNING", status="RESOLVED",
+            first_value=8, last_value=8, peak_value=8, threshold_value="7.10", description="old",
+        )
+        self.client.force_login(self.inspector)
+        response = self.client.get(reverse("alerts:list"))
+        self.assertContains(response, self.alert.reference)
+        self.assertNotContains(response, old.reference)
+        response = self.client.get(reverse("alerts:list"), {"status": "all"})
+        self.assertContains(response, old.reference)
+        response = self.client.get(reverse("alerts:list"), {"status": "all", "severity": "CRITICAL"})
+        self.assertNotContains(response, self.alert.reference)
+
+    def test_detail_page(self):
+        self.client.force_login(self.inspector)
+        response = self.client.get(reverse("alerts:detail", args=[self.alert.pk]))
+        self.assertContains(response, "not a real emergency")
+        self.assertContains(response, reverse("alerts:acknowledge", args=[self.alert.pk]))
+        self.assertNotContains(response, reverse("alerts:resolve", args=[self.alert.pk]))  # inspector: no resolve form
+        self.assertEqual(self.client.get(reverse("alerts:detail", args=[999])).status_code, 404)
+
+    def test_inspector_acknowledges_from_page(self):
+        self.client.force_login(self.inspector)
+        response = self.client.post(reverse("alerts:acknowledge", args=[self.alert.pk]),
+                                    {"next": reverse("alerts:list")})
+        self.assertRedirects(response, reverse("alerts:list"))
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.status, Alert.Status.ACKNOWLEDGED)
+
+    def test_acknowledge_ignores_external_next_url(self):
+        self.client.force_login(self.inspector)
+        response = self.client.post(reverse("alerts:acknowledge", args=[self.alert.pk]), {"next": "https://evil.example/"})
+        self.assertRedirects(response, reverse("alerts:detail", args=[self.alert.pk]))
+
+    def test_inspector_cannot_resolve_from_page(self):
+        self.client.force_login(self.inspector)
+        response = self.client.post(reverse("alerts:resolve", args=[self.alert.pk]), {"resolution_notes": "x"})
+        self.assertEqual(response.status_code, 403)
+        self.alert.refresh_from_db()
+        self.assertTrue(self.alert.is_open)
+
+    def test_admin_resolve_requires_notes(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("alerts:resolve", args=[self.alert.pk]), {"resolution_notes": ""})
+        self.assertEqual(response.status_code, 400)
+        self.alert.refresh_from_db()
+        self.assertTrue(self.alert.is_open)
+
+    def test_admin_resolves_from_page(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("alerts:resolve", args=[self.alert.pk]), {"resolution_notes": "Valve replaced"})
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.status, Alert.Status.RESOLVED)
+        self.assertEqual(self.alert.resolution_notes, "Valve replaced")
+
+    def test_equipment_page_has_alerts_tab(self):
+        self.client.force_login(self.inspector)
+        self.assertContains(self.client.get(self.machine.get_absolute_url()), self.alert.reference)
+
+
+class AlertApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = make_admin()
+        cls.inspector = make_inspector()
+        cls.machine = make_machine()
+
+    def setUp(self):
+        send(self.machine, temperature=80)
+        self.alert = Alert.objects.get()
+
+    def api_post(self, url, data=None):
+        return self.client.post(url, json.dumps(data or {}), content_type="application/json")
+
+    def test_list_filters(self):
+        self.client.force_login(self.inspector)
+        data = self.client.get("/api/v1/alerts/").json()
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["results"][0]["severity"], "WARNING")
+        self.assertEqual(self.client.get("/api/v1/alerts/?status=RESOLVED").json()["count"], 0)
+        self.assertEqual(self.client.get("/api/v1/alerts/?equipment=EQ-001&metric=temperature").json()["count"], 1)
+
+    def test_acknowledge_any_role_once(self):
+        self.client.force_login(self.inspector)
+        url = f"/api/v1/alerts/{self.alert.pk}/acknowledge/"
+        response = self.api_post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ACKNOWLEDGED")
+        response = self.api_post(url)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"], "Only active alerts can be acknowledged.")
+
+    def test_resolve_admin_only(self):
+        url = f"/api/v1/alerts/{self.alert.pk}/resolve/"
+        self.client.force_login(self.inspector)
+        self.assertEqual(self.api_post(url, {"resolution_notes": "x"}).status_code, 403)
+        self.client.force_login(self.admin)
+        response = self.api_post(url, {"resolution_notes": ""})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("resolution_notes", response.json()["details"])
+        response = self.api_post(url, {"resolution_notes": "Sensor recalibrated"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "RESOLVED")
+        self.assertEqual(self.api_post(url, {"resolution_notes": "again"}).status_code, 409)
+
+    def test_session_post_needs_csrf_token(self):
+        client = self.client_class(enforce_csrf_checks=True)
+        client.force_login(self.inspector)
+        response = client.post(f"/api/v1/alerts/{self.alert.pk}/acknowledge/")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("CSRF", response.json()["error"])
+        self.alert.refresh_from_db()
+        self.assertEqual(self.alert.status, Alert.Status.ACTIVE)
+
+    def test_unknown_alert_404(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.api_post("/api/v1/alerts/999/acknowledge/").status_code, 404)
