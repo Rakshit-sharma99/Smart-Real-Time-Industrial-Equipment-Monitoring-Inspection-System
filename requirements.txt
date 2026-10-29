@@ -1,0 +1,37 @@
+# EquipWatch - pinned dependencies (Python 3.11-3.13)
+# Direct dependencies
+Django==5.2.18
+djangorestframework==3.18.3
+channels==4.3.2
+daphne==4.2.3
+python-dotenv==1.2.4
+qrcode[pil]==8.2
+reportlab==4.5.1
+pillow==13.0.0
+
+# Transitive dependencies (pinned for reproducible installs)
+asgiref==3.13.0
+attrs==26.1.0
+autobahn==26.10.2
+Automat==25.4.16
+cbor2==6.1.5
+cffi==2.1.1
+charset-normalizer==3.5.2
+colorama==0.4.6
+constantly==23.10.4
+cryptography==50.0.2
+hyperlink==21.0.0
+idna==3.20
+Incremental==24.11.0
+msgpack==1.2.4
+packaging==26.3
+pycparser==3.12
+pyOpenSSL==26.4.0
+service-identity==26.1.0
+sqlparse==0.6.0
+Twisted==26.4.0
+txaio==26.6.1
+typing_extensions==4.16.0
+tzdata==2026.6
+ujson==6.0.0
+zope.interface==8.7
