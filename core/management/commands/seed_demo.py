@@ -20,9 +20,30 @@ from accounts.models import Role
 from equipment.metrics import VIBRATION
 from equipment.models import Equipment
 from equipment.services import recompute_health
+from inspections import services as inspection_services
+from inspections.models import Defect, Inspection, InspectionResponse, InspectionTemplate
 from monitoring.models import Alert, SensorReading, SimulatorSettings, Source
 from monitoring.services import AUTO_RESOLVE_NOTE
 from monitoring.simulation import SensorSimulator
+
+GENERAL_CHECKLIST = [
+    "Guards and safety covers are in place and secure",
+    "No unusual noise or vibration while running",
+    "No oil, coolant or air leaks visible",
+    "Belts, couplings and fasteners are tight and undamaged",
+    "Emergency stop works and is clearly labelled",
+    "Cables and electrical panels are undamaged and closed",
+    "Lubrication levels are within the marked range",
+    "Area around the machine is clean and unobstructed",
+]
+BOILER_CHECKLIST = [
+    "Pressure gauge reads within the normal operating range",
+    "Safety relief valve is free of corrosion and its seal is intact",
+    "Water level glass is clean and shows the correct level",
+    "No leaks at flanges, valves or joints",
+    "Burner flame is stable (no flicker or soot)",
+    "Insulation and lagging are intact",
+]
 
 BACKFILL_HOURS = 24
 BACKFILL_STEP_MINUTES = 5
@@ -68,17 +89,23 @@ class Command(BaseCommand):
             readings = self.seed_readings(equipment)
             self.seed_alert_history(equipment)
             SimulatorSettings.load()
+            inspection_count = self.seed_inspections(users, equipment)
 
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"  Users: {', '.join(users)} (password from DEMO_PASSWORD in .env)")
         self.stdout.write(f"  Equipment: {len(equipment)} machines")
         self.stdout.write(f"  Readings backfilled: {readings}")
+        self.stdout.write(f"  Inspections: {inspection_count} (2 assigned to inspector_demo, 1 submitted with a defect)")
         self.stdout.write("  Machines show OFFLINE until you start: python manage.py simulate_sensors")
 
     # --- steps -----------------------------------------------------------------
 
     def reset(self):
         """Delete ALL equipment-related data and the demo users (this is a demo database)."""
+        # Inspection records are protected, so delete them before the equipment.
+        Defect.objects.all().delete()
+        Inspection.objects.all().delete()
+        InspectionTemplate.objects.all().delete()
         Equipment.objects.all().delete()  # cascades to readings and alerts
         SimulatorSettings.objects.all().delete()
         User.objects.filter(username__in=[u[0] for u in DEMO_USERS]).delete()
@@ -169,3 +196,58 @@ class Command(BaseCommand):
             resolved_at=start + timedelta(minutes=9),
             resolution_notes=AUTO_RESOLVE_NOTE,
         )
+
+    def seed_inspections(self, users, equipment):
+        """Two checklist templates, two assigned inspections and one submitted inspection with a defect."""
+        general = self.make_template("General equipment inspection", "", GENERAL_CHECKLIST)
+        boiler = self.make_template("Boiler & pressure vessel inspection", Equipment.EquipmentType.BOILER, BOILER_CHECKLIST)
+        if Inspection.objects.exists():
+            return Inspection.objects.count()
+
+        admin, inspector = users["admin_demo"], users["inspector_demo"]
+        today = timezone.localdate()
+        inspection_services.assign_inspection(
+            equipment=equipment["EQ-001"], template=general, inspector=inspector,
+            due_date=today + timedelta(days=1), created_by=admin,
+        )
+        inspection_services.assign_inspection(
+            equipment=equipment["EQ-004"], template=boiler, inspector=inspector,
+            due_date=today + timedelta(days=3), created_by=admin,
+        )
+
+        # A submitted inspection, created through the real services so the rules apply.
+        done = inspection_services.assign_inspection(
+            equipment=equipment["EQ-002"], template=general, inspector=inspector,
+            due_date=today - timedelta(days=1), created_by=admin,
+        )
+        inspection_services.start_inspection(done, inspector)
+        Outcome = InspectionResponse.Outcome
+        for response in done.responses.all():
+            if "leaks" in response.item_text:
+                response.outcome = Outcome.FAIL
+                response.remarks = "Hydraulic oil weeping from the pump outlet fitting; drip tray half full."
+            elif "Emergency stop" in response.item_text:
+                response.outcome = Outcome.NOT_APPLICABLE
+                response.remarks = "E-stop is on the shared press panel, checked separately."
+            else:
+                response.outcome = Outcome.PASS
+            response.save()
+        done.remarks = "Pump running normally apart from the leak. Recommend replacing the outlet seal."
+        done.save(update_fields=["remarks"])
+        inspection_services.submit_inspection(done, inspector)
+        # Back-date it so the history looks natural.
+        yesterday = timezone.now() - timedelta(days=1)
+        Inspection.objects.filter(pk=done.pk).update(
+            created_at=yesterday - timedelta(days=1), started_at=yesterday - timedelta(minutes=25), submitted_at=yesterday
+        )
+        Defect.objects.filter(inspection=done).update(created_at=yesterday)
+        return Inspection.objects.count()
+
+    def make_template(self, name, equipment_type, items):
+        template, created = InspectionTemplate.objects.get_or_create(
+            name=name, defaults={"equipment_type": equipment_type}
+        )
+        if created:
+            for order, text in enumerate(items, start=1):
+                template.items.create(order=order, text=text)
+        return template

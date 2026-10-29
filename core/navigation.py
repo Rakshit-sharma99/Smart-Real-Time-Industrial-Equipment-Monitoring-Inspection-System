@@ -19,6 +19,7 @@ NAV_ITEMS = [
     NavItem("equipment", "Equipment", "bi-hdd-stack", "equipment:list"),
     NavItem("live", "Live Monitoring", "bi-broadcast", "monitoring:live"),
     NavItem("alerts", "Alerts", "bi-bell", "alerts:list", badge_kpi="active_alerts"),
+    NavItem("inspections", "Inspections", "bi-clipboard-check", "inspections:list"),
     NavItem("settings", "Settings", "bi-gear", "core:settings"),
 ]
 

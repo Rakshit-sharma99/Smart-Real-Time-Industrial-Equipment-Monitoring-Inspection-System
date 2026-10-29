@@ -10,6 +10,9 @@
   {% include "partials/kpi_tile.html" with label="Offline" value=summary.offline icon="bi-wifi-off" tone="neutral" kpi="offline" href=equipment_url|add:"?status=OFFLINE" %}
   {% url 'alerts:list' as alerts_url %}
   {% include "partials/kpi_tile.html" with label="Active alerts" value=summary.active_alerts icon="bi-bell" tone="critical" kpi="active_alerts" href=alerts_url %}
+  {% url 'inspections:list' as inspections_url %}
+  {% include "partials/kpi_tile.html" with label="Pending inspections" value=summary.pending_inspections icon="bi-clipboard" tone="info" kpi="pending_inspections" href=inspections_url %}
+  {% include "partials/kpi_tile.html" with label="Failed inspections" value=summary.failed_inspections icon="bi-clipboard-x" tone="critical" kpi="failed_inspections" href=inspections_url|add:"?status=all&result=FAIL" %}
 </section>
 
 <div class="row g-3">
@@ -104,6 +107,18 @@
       </ul>
       {% else %}
         {% include "partials/empty_state.html" with icon="bi-bell-slash" title="No alerts yet" text="Alerts appear here when a reading crosses a limit." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+<div class="row g-3 mt-0">
+  <div class="col-xl-7">
+    <div class="card">
+      <div class="card-header">Recent inspections <a class="btn btn-sm btn-outline-secondary" href="{% url 'inspections:list' %}?status=all">View all</a></div>
+      {% if recent_inspections %}
+        {% include "partials/table_wrapper.html" with table="inspections/_table.html" inspections=recent_inspections %}
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-clipboard-check" title="No inspections yet" %}
       {% endif %}
     </div>
   </div>

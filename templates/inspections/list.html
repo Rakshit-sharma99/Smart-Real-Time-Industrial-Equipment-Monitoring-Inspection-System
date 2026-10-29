@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Inspections</h2>
+    <p class="subtitle">{% if is_admin_user %}All inspections{% else %}Your inspections{% endif %} · {{ page_obj.paginator.count|default:0 }} shown</p>
+  </div>
+  <div class="page-actions">
+    {% if is_admin_user %}<a class="btn btn-primary" href="{% url 'inspections:assign' %}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Assign inspection</a>{% endif %}
+  </div>
+</div>
+{% include "inspections/_nav.html" %}
+
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.result.id_for_label }}">Result</label>{{ filter_form.result }}</div>
+  <div><label class="form-label" for="{{ filter_form.equipment.id_for_label }}">Equipment</label>{{ filter_form.equipment }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}">Reset</a>{% endif %}
+  </div>
+</form>
+
+{% if inspections %}
+  {% include "partials/table_wrapper.html" with table="inspections/_table.html" %}
+  {% include "partials/pagination.html" %}
+{% else %}
+  {% if is_admin_user %}
+    {% url 'inspections:assign' as assign_url %}
+    {% include "partials/empty_state.html" with icon="bi-clipboard-check" title="No inspections match" text="Assign an inspection, or choose 'All statuses' to see submitted ones." action_url=assign_url action_label="Assign inspection" %}
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-clipboard-check" title="No inspections match" text="Nothing is assigned to you right now. Scan a machine's QR code to start an ad-hoc inspection, or choose 'All statuses' to see your history." %}
+  {% endif %}
+{% endif %}
+{% endblock %}

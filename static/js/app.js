@@ -99,19 +99,21 @@
 
   // ---------------------------------------------------------------------------
   // Confirm modal: <form data-confirm="Question?" data-confirm-button="Delete">
+  // The data-confirm* attributes may also sit on one submit button only.
   // ---------------------------------------------------------------------------
   document.addEventListener("submit", function (event) {
     const form = event.target;
-    if (!form.dataset || !form.dataset.confirm || form.dataset.confirmed === "1") return;
+    const submitter = event.submitter || null;
+    const source = submitter && submitter.dataset.confirm ? submitter : form;
+    if (!source.dataset || !source.dataset.confirm || form.dataset.confirmed === "1") return;
     const modalEl = document.getElementById("confirmModal");
     if (!modalEl || !window.bootstrap) return; // fall back to a plain submit
     event.preventDefault();
-    const submitter = event.submitter || null;
-    document.getElementById("confirmModalTitle").textContent = form.dataset.confirmTitle || "Please confirm";
-    document.getElementById("confirmModalText").textContent = form.dataset.confirm;
+    document.getElementById("confirmModalTitle").textContent = source.dataset.confirmTitle || "Please confirm";
+    document.getElementById("confirmModalText").textContent = source.dataset.confirm;
     const ok = document.getElementById("confirmModalOk");
-    ok.textContent = form.dataset.confirmButton || "Confirm";
-    ok.className = "btn " + (form.dataset.confirmTone === "primary" ? "btn-primary" : "btn-danger");
+    ok.textContent = source.dataset.confirmButton || "Confirm";
+    ok.className = "btn " + (source.dataset.confirmTone === "primary" ? "btn-primary" : "btn-danger");
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     ok.onclick = function () {
       form.dataset.confirmed = "1";

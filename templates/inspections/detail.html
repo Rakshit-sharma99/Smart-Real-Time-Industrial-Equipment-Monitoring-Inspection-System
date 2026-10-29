@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h2>{{ inspection.reference }}</h2>
+      {% include "partials/status_badge.html" with status=inspection.status label=inspection.get_status_display %}
+      {% if inspection.overall_result %}{% include "partials/status_badge.html" with status=inspection.overall_result label=inspection.get_overall_result_display %}{% endif %}
+    </div>
+    <p class="subtitle"><a href="{{ inspection.equipment.get_absolute_url }}">{{ inspection.equipment.equipment_code }} · {{ inspection.equipment.name }}</a> · {{ inspection.template.name }}</p>
+  </div>
+  <div class="page-actions">
+    {% if is_assignee and inspection.status == "ASSIGNED" %}
+      <form method="post" action="{% url 'inspections:start' inspection.pk %}">{% csrf_token %}
+        <button class="btn btn-primary" type="submit"><i class="bi bi-play-fill" aria-hidden="true"></i> Start inspection</button>
+      </form>
+    {% elif is_assignee and inspection.status == "IN_PROGRESS" %}
+      <a class="btn btn-primary" href="{% url 'inspections:perform' inspection.pk %}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Continue inspection</a>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}">All inspections</a>
+  </div>
+</div>
+
+{% if inspection.is_submitted %}
+<div class="alert alert-secondary"><i class="bi bi-lock" aria-hidden="true"></i> Submitted inspections are read-only. To correct something, start a new inspection.</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-4 order-lg-2">
+    <div class="card">
+      <div class="card-header">Summary</div>
+      <div class="card-body">
+        <dl class="detail-list">
+          <dt>Inspector</dt><dd>{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}</dd>
+          <dt>Assigned by</dt><dd>{% if inspection.is_adhoc %}Ad-hoc (self){% else %}{{ inspection.created_by.get_full_name|default:inspection.created_by.username }}{% endif %}</dd>
+          <dt>Due</dt><dd>{{ inspection.due_date|date:"d M Y"|default:"—" }}{% if inspection.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}</dd>
+          <dt>Started</dt><dd>{{ inspection.started_at|date:"d M Y, H:i"|default:"—" }}</dd>
+          <dt>Submitted</dt><dd>{{ inspection.submitted_at|date:"d M Y, H:i"|default:"—" }}</dd>
+        </dl>
+        {% if inspection.status != "ASSIGNED" %}
+        <div class="count-strip mt-3">
+          <div class="tone-healthy"><span>{{ counts.PASS }}</span>Pass</div>
+          <div class="tone-critical"><span>{{ counts.FAIL }}</span>Fail</div>
+          <div class="tone-warning"><span>{{ counts.NEEDS_ATTENTION }}</span>Attention</div>
+          <div class="tone-offline"><span>{{ counts.NOT_APPLICABLE }}</span>N/A</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% if defects %}
+    <div class="card">
+      <div class="card-header">Defects raised</div>
+      <ul class="list-group list-group-flush">
+        {% for defect in defects %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between gap-2">
+            <span class="fw-semibold">{{ defect.reference }}</span>
+            <span>{% include "partials/status_badge.html" with status=defect.severity label=defect.get_severity_display %} {% include "partials/status_badge.html" with status=defect.status label=defect.get_status_display %}</span>
+          </div>
+          <div class="small">{{ defect.description }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-8 order-lg-1">
+    <div class="card">
+      <div class="card-header">Checklist</div>
+      {% if responses %}
+      <ol class="list-group list-group-flush list-group-numbered checklist-readonly">
+        {% for r in responses %}
+        <li class="list-group-item">
+          <div class="checklist-row">
+            <div class="min-w-0 flex-grow-1">
+              <div class="fw-medium">{{ r.item_text }}</div>
+              {% if r.remarks %}<div class="small text-body-secondary mt-1">{{ r.remarks|linebreaksbr }}</div>{% endif %}
+            </div>
+            <div class="checklist-side">
+              {% if r.outcome %}{% include "partials/status_badge.html" with status=r.outcome label=r.get_outcome_display %}{% else %}<span class="small text-body-secondary">Not answered</span>{% endif %}
+              {% if r.photo %}<a href="{% url 'inspections:photo' r.pk %}" target="_blank" rel="noopener"><img class="photo-thumb" src="{% url 'inspections:photo' r.pk %}" alt="Photo for item {{ forloop.counter }}" loading="lazy"></a>{% endif %}
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-list-check" title="Not started yet" text="The checklist is copied from the template when the inspector starts." %}
+      {% endif %}
+      {% if inspection.remarks %}<div class="card-footer"><strong>Overall remarks:</strong> {{ inspection.remarks|linebreaksbr }}</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

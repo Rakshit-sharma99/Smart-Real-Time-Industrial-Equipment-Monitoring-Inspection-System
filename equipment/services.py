@@ -5,6 +5,8 @@ import qrcode
 from qrcode.constants import ERROR_CORRECT_M
 from qrcode.image.pil import PilImage
 
+from inspections.models import Defect
+
 from .metrics import CRITICAL, METRICS, WARNING, classify, tone_for, worst
 from .models import Equipment
 
@@ -24,8 +26,8 @@ def health_from(worst_metric_status, has_open_high_defect):
 
 
 def has_open_high_defect(equipment):
-    """True when the machine has an OPEN defect of HIGH severity."""
-    return False  # Defects arrive with the inspections app (phase 6).
+    """True when the machine has an unresolved (OPEN or IN_MAINTENANCE) HIGH-severity defect."""
+    return Defect.objects.unresolved().filter(equipment=equipment, severity=Defect.Severity.HIGH).exists()
 
 
 def metric_statuses(equipment, reading):

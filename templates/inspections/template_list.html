@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="toolbar">
+  <p class="text-body-secondary mb-0 small">Checklists used for inspections. A machine uses the active template for its type, or a general one.</p>
+  <a class="btn btn-primary" href="{% url 'inspections:template_create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New template</a>
+</div>
+{% if templates %}
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead><tr><th scope="col">Name</th><th scope="col">For</th><th scope="col" class="num">Items</th><th scope="col">Status</th><th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+        {% for t in templates %}
+        <tr>
+          <td class="fw-semibold">{{ t.name }}</td>
+          <td>{{ t.get_equipment_type_display|default:"Any equipment (general)" }}</td>
+          <td class="num">{{ t.items.count }}</td>
+          <td>{% if t.is_active %}{% include "partials/status_badge.html" with status="HEALTHY" label="Active" %}{% else %}{% include "partials/status_badge.html" with status="INACTIVE" label="Inactive" %}{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'inspections:template_edit' t.pk %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+  {% url 'inspections:template_create' as create_url %}
+  {% include "partials/empty_state.html" with icon="bi-list-check" title="No checklist templates" text="Create a template before assigning inspections." action_url=create_url action_label="New template" %}
+{% endif %}
+{% endblock %}

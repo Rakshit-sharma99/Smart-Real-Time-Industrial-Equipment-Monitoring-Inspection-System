@@ -10,6 +10,7 @@ urlpatterns = [
     # Short URL encoded in every QR label. Requires login, then redirects.
     path("e/<uuid:public_id>/", qr_redirect, name="equipment_qr_redirect"),
     path("alerts/", include("monitoring.alert_urls")),
+    path("inspections/", include("inspections.urls")),
     path("api/v1/", include("config.api_urls")),
     path("", include("monitoring.urls")),
     path("", include("core.urls")),

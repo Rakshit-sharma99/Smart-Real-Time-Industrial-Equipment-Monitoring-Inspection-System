@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-xl-6">
+    <div class="card">
+      <div class="card-header">Assign an inspection</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+          <p class="small text-body-secondary">The checklist is copied into the inspection when the inspector starts it.</p>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Assign</button>
+            <a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

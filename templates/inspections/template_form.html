@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">{% if template_obj %}Edit template{% else %}New template{% endif %}</div>
+        <div class="card-body">
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">Checklist items</div>
+        <div class="card-body">
+          <p class="small text-body-secondary">Items are shown in "order". Tick "Remove" to drop an item. Inspections that already started keep their own copy of the items.</p>
+          {{ formset.management_form }}
+          {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors|join:" " }}</div>{% endif %}
+          {% for item_form in formset %}
+          <div class="item-row">
+            {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="item-order">
+              <label class="form-label small" for="{{ item_form.order.id_for_label }}">Order</label>
+              {{ item_form.order }}
+            </div>
+            <div class="item-text">
+              <label class="form-label small" for="{{ item_form.text.id_for_label }}">Item text</label>
+              {{ item_form.text }}
+              {% for error in item_form.text.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            {% if item_form.instance.pk %}
+            <div class="item-delete form-check">
+              {{ item_form.DELETE }}
+              <label class="form-check-label small" for="{{ item_form.DELETE.id_for_label }}">Remove</label>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+          <p class="small text-body-secondary mb-0">Need more lines? Save, then edit again: three empty rows are always added.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Save template</button>
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:template_list' %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

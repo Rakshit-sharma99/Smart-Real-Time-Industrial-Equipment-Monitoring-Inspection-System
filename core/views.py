@@ -5,6 +5,7 @@ from django.template import loader
 from accounts.models import Role
 from equipment.models import Equipment
 from equipment.services import metric_rows
+from inspections.models import Inspection
 from monitoring.models import Alert
 from monitoring.services import latest_readings
 
@@ -24,6 +25,7 @@ def dashboard(request):
             {"equipment": eq, "metrics": metric_rows(eq, latest.get(eq.pk))} for eq in machines
         ],
         "recent_alerts": Alert.objects.select_related("equipment")[:6],
+        "recent_inspections": Inspection.objects.visible_to(request.user).select_related("equipment", "inspector")[:5],
         "trend_machines": machines,
     }
     return render(request, "core/dashboard.html", context)

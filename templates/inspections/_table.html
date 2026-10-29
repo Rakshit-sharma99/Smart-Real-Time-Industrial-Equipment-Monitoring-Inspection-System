@@ -1,0 +1,29 @@
+{# Inspection table. Expects `inspections`; optional hide_equipment. #}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">Inspection</th>
+      {% if not hide_equipment %}<th scope="col">Equipment</th>{% endif %}
+      <th scope="col">Inspector</th>
+      <th scope="col">Status</th>
+      <th scope="col">Result</th>
+      <th scope="col">Due / submitted</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ins in inspections %}
+    <tr>
+      <td class="text-nowrap"><a class="fw-semibold" href="{% url 'inspections:detail' ins.pk %}">{{ ins.reference }}</a>{% if ins.is_adhoc %} <span class="badge text-bg-light border fw-normal">ad-hoc</span>{% endif %}</td>
+      {% if not hide_equipment %}<td><a href="{{ ins.equipment.get_absolute_url }}">{{ ins.equipment.equipment_code }}</a><div class="small text-body-secondary text-truncate cell-sub">{{ ins.equipment.name }}</div></td>{% endif %}
+      <td class="text-nowrap">{{ ins.inspector.get_full_name|default:ins.inspector.username }}</td>
+      <td>{% include "partials/status_badge.html" with status=ins.status label=ins.get_status_display %}</td>
+      <td>{% if ins.overall_result %}{% include "partials/status_badge.html" with status=ins.overall_result label=ins.get_overall_result_display %}{% else %}<span class="text-body-secondary">—</span>{% endif %}</td>
+      <td class="text-nowrap small">
+        {% if ins.submitted_at %}{{ ins.submitted_at|date:"d M Y, H:i" }}
+        {% elif ins.due_date %}<span class="{% if ins.is_overdue %}text-danger fw-semibold{% else %}text-body-secondary{% endif %}">Due {{ ins.due_date|date:"d M Y" }}{% if ins.is_overdue %} · overdue{% endif %}</span>
+        {% else %}<span class="text-body-secondary">No due date</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

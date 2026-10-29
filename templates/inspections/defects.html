@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Defects</h2>
+    <p class="subtitle">Created automatically from failed or needs-attention checklist items</p>
+  </div>
+</div>
+{% include "inspections/_nav.html" %}
+
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.severity.id_for_label }}">Severity</label>{{ filter_form.severity }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'inspections:defects' %}">Reset</a>{% endif %}
+  </div>
+</form>
+
+{% if defects %}
+  {% include "partials/table_wrapper.html" with table="inspections/_defects_table.html" %}
+  {% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-check2-circle" title="No defects match" text="Defects appear when a submitted inspection has a Fail or Needs attention item." %}
+{% endif %}
+{% endblock %}

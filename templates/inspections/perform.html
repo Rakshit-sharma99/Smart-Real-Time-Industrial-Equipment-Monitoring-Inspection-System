@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{{ inspection.equipment.equipment_code }} · {{ inspection.equipment.name }}</h2>
+    <p class="subtitle">{{ inspection.reference }} · {{ inspection.template.name }} · {{ inspection.equipment.location }}</p>
+  </div>
+</div>
+
+{% if submit_errors %}
+<div class="alert alert-danger" role="alert">
+  <strong>Your answers were saved, but the inspection can't be submitted yet:</strong>
+  <ul class="mb-0 mt-1">{% for error in submit_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+{% if formset.total_error_count %}<div class="alert alert-danger" role="alert">Please fix the highlighted items. Nothing was saved.</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" novalidate data-once>
+  {% csrf_token %}
+  {{ formset.management_form }}
+  {% for form in formset %}
+  <fieldset class="card check-item{% if form.errors %} has-error{% endif %}">
+    <div class="card-body">
+      {{ form.id }}
+      <legend class="check-text"><span class="check-num">{{ forloop.counter }}</span>{{ form.instance.item_text }}</legend>
+      <div class="outcome-group" role="radiogroup" aria-label="Result for item {{ forloop.counter }}">
+        {% for radio in form.outcome %}
+          <input type="radio" class="btn-check" name="{{ radio.data.name }}" id="{{ radio.id_for_label }}" value="{{ radio.data.value }}"{% if radio.data.selected %} checked{% endif %} autocomplete="off">
+          <label class="btn outcome-btn tone-{{ radio.data.value|status_tone }}" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+        {% endfor %}
+      </div>
+      {% for error in form.outcome.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      <label class="visually-hidden" for="{{ form.remarks.id_for_label }}">Remarks for item {{ forloop.counter }}</label>
+      {{ form.remarks }}
+      {% for error in form.remarks.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      <div class="photo-row">
+        {% if form.instance.photo %}
+          <a href="{% url 'inspections:photo' form.instance.pk %}" target="_blank" rel="noopener"><img class="photo-thumb" src="{% url 'inspections:photo' form.instance.pk %}" alt="Current photo for item {{ forloop.counter }}"></a>
+        {% endif %}
+        <div class="flex-grow-1 min-w-0">
+          <label class="form-label small mb-1" for="{{ form.photo_upload.id_for_label }}"><i class="bi bi-camera" aria-hidden="true"></i> {% if form.instance.photo %}Replace photo{% else %}Add photo{% endif %} <span class="text-body-secondary">(JPEG, PNG or WebP, max 5 MB)</span></label>
+          {{ form.photo_upload }}
+          {% for error in form.photo_upload.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </fieldset>
+  {% endfor %}
+
+  <div class="card">
+    <div class="card-body">
+      <label class="form-label" for="{{ remarks_form.remarks.id_for_label }}">Overall remarks <span class="text-body-secondary">(optional)</span></label>
+      {{ remarks_form.remarks }}
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <button class="btn btn-outline-secondary" type="submit" name="action" value="save"><i class="bi bi-save" aria-hidden="true"></i> Save progress</button>
+    <button class="btn btn-primary" type="submit" name="action" value="submit"
+            data-confirm="Submit {{ inspection.reference }}? A submitted inspection cannot be edited. Failed items become defects."
+            data-confirm-button="Submit inspection" data-confirm-tone="primary"><i class="bi bi-send" aria-hidden="true"></i> Submit inspection</button>
+  </div>
+</form>
+{% endblock %}

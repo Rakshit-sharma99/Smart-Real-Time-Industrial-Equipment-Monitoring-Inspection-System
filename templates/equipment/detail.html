@@ -9,7 +9,21 @@
     <p class="subtitle">{{ equipment.get_equipment_type_display }} · {{ equipment.location }}</p>
   </div>
   <div class="page-actions">
-    {% block equipment_actions %}{% endblock %}
+    {% if open_assignment %}
+      {% if open_assignment.status == "IN_PROGRESS" %}
+        <a class="btn btn-primary" href="{% url 'inspections:perform' open_assignment.pk %}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Continue inspection</a>
+      {% else %}
+        <a class="btn btn-primary" href="{% url 'inspections:detail' open_assignment.pk %}"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Assigned inspection</a>
+      {% endif %}
+    {% elif can_start_adhoc %}
+      <form method="post" action="{% url 'inspections:start_adhoc' equipment.equipment_code %}">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Start inspection</button>
+      </form>
+    {% endif %}
+    {% if is_admin_user and equipment.is_active %}
+      <a class="btn btn-outline-secondary" href="{% url 'inspections:assign' %}?equipment={{ equipment.equipment_code }}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Assign inspection</a>
+    {% endif %}
     {% if is_admin_user %}
       <a class="btn btn-outline-secondary" href="{% url 'equipment:edit' equipment.equipment_code %}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
       <a class="btn btn-outline-secondary" href="{% url 'equipment:thresholds' equipment.equipment_code %}"><i class="bi bi-sliders" aria-hidden="true"></i> Thresholds</a>
@@ -110,6 +124,8 @@
   <ul class="nav nav-underline nav-tabs-card" role="tablist">
     <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-readings" type="button" role="tab" aria-controls="tab-readings" aria-selected="true"><i class="bi bi-activity" aria-hidden="true"></i> Readings</button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-alerts" type="button" role="tab" aria-controls="tab-alerts" aria-selected="false"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inspections" type="button" role="tab" aria-controls="tab-inspections" aria-selected="false"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Inspections</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-defects" type="button" role="tab" aria-controls="tab-defects" aria-selected="false"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i> Defects</button></li>
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-readings" role="tabpanel">
@@ -137,6 +153,20 @@
         <div class="card-footer small"><a href="{% url 'alerts:list' %}?status=all&amp;equipment={{ equipment.equipment_code }}">All alerts for {{ equipment.equipment_code }}</a></div>
       {% else %}
         {% include "partials/empty_state.html" with icon="bi-bell-slash" title="No alerts for this machine" %}
+      {% endif %}
+    </div>
+    <div class="tab-pane fade" id="tab-inspections" role="tabpanel">
+      {% if inspections %}
+        {% include "partials/table_wrapper.html" with table="inspections/_table.html" hide_equipment=True %}
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-clipboard-check" title="No inspections you can see for this machine" %}
+      {% endif %}
+    </div>
+    <div class="tab-pane fade" id="tab-defects" role="tabpanel">
+      {% if defects %}
+        {% include "partials/table_wrapper.html" with table="inspections/_defects_table.html" hide_equipment=True %}
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-check2-circle" title="No defects recorded" %}
       {% endif %}
     </div>
   </div>

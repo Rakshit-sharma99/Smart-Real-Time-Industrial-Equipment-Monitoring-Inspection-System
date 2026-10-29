@@ -1,0 +1,4 @@
+<ul class="nav nav-underline settings-nav mb-3">
+  <li class="nav-item"><a class="nav-link{% if inspections_tab == 'inspections' %} active{% endif %}" href="{% url 'inspections:list' %}">Inspections</a></li>
+  <li class="nav-item"><a class="nav-link{% if inspections_tab == 'defects' %} active{% endif %}" href="{% url 'inspections:defects' %}">Defects</a></li>
+</ul>

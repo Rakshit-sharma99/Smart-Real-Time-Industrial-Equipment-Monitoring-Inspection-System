@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "accounts",
     "equipment",
     "monitoring",
+    "inspections",
 ]
 
 MIDDLEWARE = [

@@ -7,6 +7,8 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView
 
 from core.permissions import RoleRequiredMixin, admin_required, is_admin
+from inspections import services as inspection_services
+from inspections.models import Defect, Inspection
 
 from . import services
 from .forms import EquipmentCreateForm, EquipmentDetailsForm, EquipmentFilterForm, ThresholdForm
@@ -39,6 +41,14 @@ def equipment_detail(request, code):
         "metric_cards": services.metric_rows(equipment, latest),
         "recent_readings": readings[:20],
         "alerts": equipment.alerts.select_related("equipment")[:20],
+        "inspections": Inspection.objects.visible_to(request.user)
+        .filter(equipment=equipment)
+        .select_related("equipment", "inspector")[:10],
+        "defects": Defect.objects.visible_to(request.user)
+        .filter(equipment=equipment)
+        .select_related("equipment", "inspection")[:10],
+        "open_assignment": Inspection.objects.open().filter(equipment=equipment, inspector=request.user).first(),
+        "can_start_adhoc": inspection_services.adhoc_blocker(equipment, request.user) is None,
         "page_title": equipment.equipment_code,
     }
     return render(request, "equipment/detail.html", context)

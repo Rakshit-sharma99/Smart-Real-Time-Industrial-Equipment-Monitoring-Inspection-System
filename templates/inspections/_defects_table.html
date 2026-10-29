@@ -1,0 +1,25 @@
+{# Defect table. Expects `defects`; optional hide_equipment. #}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">Defect</th>
+      {% if not hide_equipment %}<th scope="col">Equipment</th>{% endif %}
+      <th scope="col">Description</th>
+      <th scope="col">Severity</th>
+      <th scope="col">Status</th>
+      <th scope="col">From</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for defect in defects %}
+    <tr>
+      <td class="text-nowrap fw-semibold">{{ defect.reference }}</td>
+      {% if not hide_equipment %}<td><a href="{{ defect.equipment.get_absolute_url }}">{{ defect.equipment.equipment_code }}</a></td>{% endif %}
+      <td class="defect-text">{{ defect.description }}</td>
+      <td>{% include "partials/status_badge.html" with status=defect.severity label=defect.get_severity_display %}</td>
+      <td>{% include "partials/status_badge.html" with status=defect.status label=defect.get_status_display %}</td>
+      <td class="text-nowrap"><a href="{% url 'inspections:detail' defect.inspection_id %}">{{ defect.inspection.reference }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
