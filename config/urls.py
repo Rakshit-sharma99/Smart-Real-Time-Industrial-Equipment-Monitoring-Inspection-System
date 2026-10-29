@@ -1,10 +1,14 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from core import pwa
 from equipment.views import qr_redirect
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # PWA files must live at the site root (the service worker's scope is its own folder).
+    path("manifest.webmanifest", pwa.manifest, name="manifest"),
+    path("sw.js", pwa.service_worker, name="service_worker"),
     path("accounts/", include("accounts.urls")),
     path("equipment/", include("equipment.urls")),
     # Short URL encoded in every QR label. Requires login, then redirects.

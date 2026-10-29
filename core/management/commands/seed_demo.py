@@ -106,6 +106,9 @@ class Command(BaseCommand):
 
     def reset(self):
         """Delete ALL equipment-related data and the demo users (this is a demo database)."""
+        # Remove uploaded photo files too, otherwise they stay behind in media/.
+        for response in InspectionResponse.objects.exclude(photo=""):
+            response.photo.delete(save=False)
         # Task and inspection records are protected, so delete them before the equipment.
         MaintenanceTask.objects.all().delete()
         Defect.objects.all().delete()

@@ -144,3 +144,48 @@ class SeedDemoTests(TestCase):
         call_command("seed_demo", "--reset", stdout=StringIO())
         self.assertEqual(Equipment.objects.count(), 6)
         self.assertEqual(SensorReading.objects.count(), 6 * 288)
+
+
+class PwaTests(TestCase):
+    def test_manifest_is_public_json_with_icons(self):
+        response = self.client.get("/manifest.webmanifest")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/manifest+json")
+        data = response.json()
+        self.assertEqual(data["display"], "standalone")
+        self.assertEqual({icon["sizes"] for icon in data["icons"]}, {"192x192", "512x512"})
+
+    def test_service_worker_served_from_root_and_caches_static_only(self):
+        response = self.client.get("/sw.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/javascript")
+        body = response.content.decode()
+        self.assertIn('const STATIC_URL = "/static/"', body)
+        self.assertIn("offline.html", body)
+        self.assertIn("url.pathname.startsWith(STATIC_URL)", body)
+        self.assertEqual(body.count("cache.put("), 1)  # only the /static/ branch stores responses
+
+    def test_icons_exist(self):
+        from pathlib import Path
+
+        from django.conf import settings
+
+        for size in (192, 512):
+            self.assertTrue((Path(settings.BASE_DIR) / "static" / "icons" / f"icon-{size}.png").exists())
+
+
+class SettingsSafetyTests(TestCase):
+    def test_missing_secret_key_fails_loudly_when_debug_is_off(self):
+        import os
+        import subprocess
+        import sys
+
+        from django.conf import settings
+
+        env = dict(os.environ, DEBUG="False", SECRET_KEY="", DJANGO_SETTINGS_MODULE="config.settings")
+        result = subprocess.run(
+            [sys.executable, "-c", "import django; django.setup()"],
+            cwd=settings.BASE_DIR, env=env, capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("SECRET_KEY is not set", result.stderr)

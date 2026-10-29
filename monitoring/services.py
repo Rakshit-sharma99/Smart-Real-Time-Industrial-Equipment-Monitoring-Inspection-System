@@ -47,7 +47,11 @@ class ReadingResult:
 
 def process_reading(equipment, *, temperature_c, vibration_mm_s, pressure_bar, source=Source.SIMULATED):
     with transaction.atomic():
-        equipment = Equipment.objects.select_for_update().get(pk=equipment.pk)
+        try:
+            equipment = Equipment.objects.select_for_update().get(pk=equipment.pk)
+        except Equipment.DoesNotExist:
+            # Deleted after the caller looked it up (e.g. "seed_demo --reset" while the simulator runs).
+            raise ValidationError("This equipment no longer exists.")
         if not equipment.is_active:
             raise ValidationError(f"{equipment.equipment_code} is deactivated and does not accept readings.")
 

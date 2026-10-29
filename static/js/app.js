@@ -127,6 +127,13 @@
     modal.show();
   });
 
+  // Progressive Web App: the service worker caches static files only (see /sw.js).
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
+    });
+  }
+
   // Prevent double submits of forms marked data-once (e.g. "Submit inspection").
   document.addEventListener("submit", function (event) {
     const form = event.target;

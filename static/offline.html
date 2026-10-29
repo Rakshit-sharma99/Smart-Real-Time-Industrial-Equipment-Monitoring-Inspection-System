@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2328">
+  <title>Offline · EquipWatch</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+           font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: #f6f7f9; color: #1f2328; }
+    .box { max-width: 420px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 32px 24px; text-align: center; }
+    img { width: 64px; height: 64px; border-radius: 12px; }
+    h1 { font-size: 20px; margin: 16px 0 8px; }
+    p { color: #6b7280; line-height: 1.5; }
+    button { margin-top: 8px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <img src="/static/icons/icon-192.png" alt="">
+    <h1>You are offline</h1>
+    <p>EquipWatch needs a connection to the server to show live equipment data. Check the Wi-Fi or that the server is running, then try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

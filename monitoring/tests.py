@@ -80,6 +80,12 @@ class ProcessReadingTests(TestCase):
             send(self.machine)
         self.assertFalse(SensorReading.objects.exists())
 
+    def test_deleted_equipment_is_a_validation_error_not_a_crash(self):
+        stale = Equipment.objects.get(pk=self.machine.pk)
+        Equipment.objects.filter(pk=self.machine.pk).delete()
+        with self.assertRaises(ValidationError):
+            send(stale)
+
     def test_negative_value_rejected(self):
         with self.assertRaises(ValidationError):
             send(self.machine, pressure_bar=Decimal("-1"))
