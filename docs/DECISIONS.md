@@ -10,7 +10,7 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **CSRF cookie HttpOnly**: JavaScript reads the CSRF token from a `<meta name="csrf-token">` tag instead of the cookie.
 - **Tests**: `manage.py test` switches to the MD5 password hasher and ERROR-level logging (settings `TESTING` flag) to keep the suite fast and readable. The running app is unaffected.
 - **Logging**: plain `FileHandler` (no rotation) for `logs/app.log`, because rotating a file held open by two processes (server + simulator) fails on Windows.
-- **Settings landing page**: `/settings/` sends admins to the users page (later the simulator page) and inspectors to their profile; settings sub-pages share a tab bar.
+- **Settings landing page**: `/settings/` sends admins to the Simulator tab and inspectors to their profile; settings sub-pages (Simulator, Users & roles, Checklist templates, My profile, Password) share a tab bar.
 - **Admin self-protection**: an admin cannot deactivate their own account or remove their own Admin role (prevents lock-out).
 - **Demo user names** are fictional placeholders (Asha Admin, Ivan Inspector, Isha Inspector).
 - **Sim modes affect one metric**: a machine's sim mode drives its *primary* metric (by type: compressor/pump -> pressure, CNC/conveyor -> vibration, boiler/cooling tower/other -> temperature); the other two metrics stay NORMAL. One mode change = one clear alert in the demo.
@@ -54,3 +54,8 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Health report contents follow visibility**: readings, alerts and thresholds are shown in full; the inspections and open-task sections use `visible_to(user)` (an inspector sees only their own).
 - **Health report period** is clamped to 1-90 days (invalid input -> 7). Filenames: `inspection_<code>_<submitted date>.pdf`, `health_<code>_<today>.pdf`, sanitised to `[A-Za-z0-9._-]`.
 - **PDF tests** build reports uncompressed (`compress=False`) so "Page X of Y" can be asserted in the raw bytes; downloads are compressed.
+- **PWA**: `/manifest.webmanifest` and `/sw.js` are Django views (public, no login) so the worker's scope is the whole site. The cache name includes the newest modification time of the files in `static/`, so editing CSS/JS installs a fresh worker and drops the old cache. Icons are drawn by `scripts/make_icons.py` (committed PNGs).
+- **Ingest race**: if a machine is deleted between the ingest lookup and `process_reading()` (e.g. `seed_demo --reset` while the simulator runs), that reading is rejected with a validation error instead of a 500.
+- **`seed_demo --reset`** also deletes uploaded inspection photo files.
+- **README encoding**: README.md is UTF-8. The original stub was UTF-16 (PowerShell 5 `echo >` default), which git treats as binary.
+- **Dev port**: on the build machine port 8000 was held by an unrelated Python process, so browser checks ran on `runserver 127.0.0.1:8765` with `simulate_sensors --url http://127.0.0.1:8765`. The VS Code tasks and scripts use the default port 8000.
