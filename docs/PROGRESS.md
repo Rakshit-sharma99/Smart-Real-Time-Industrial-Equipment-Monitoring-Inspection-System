@@ -12,12 +12,12 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | 5 | Alerts UI | Done |
 | 6 | Inspections, photos, defects | Done |
 | 7 | QR scanner page | Done |
-| 8 | Maintenance tasks | Not started |
+| 8 | Maintenance tasks | Done |
 | 9 | PDF reports | Not started |
 | 10 | PWA, polish, README, acceptance walkthrough | Not started |
 
 ## Next step
-Phase 8: maintenance tasks (MT-0001 codes), transition table, history, convert defect/alert to task.
+Phase 9: PDF reports (inspection report, equipment health report), numbered canvas, access control.
 
 ## How to resume
 1. `.venv\Scripts\activate`

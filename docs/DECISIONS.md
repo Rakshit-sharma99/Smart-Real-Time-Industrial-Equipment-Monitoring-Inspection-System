@@ -44,3 +44,9 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Lookup API** accepts an equipment code (case-insensitive) or a UUID; the page itself turns a decoded `/e/<uuid>/` URL or bare UUID into the UUID first and shows "Not an equipment QR" for anything else. Manual entry also accepts a code.
 - **File scanning uses a separate hidden Html5Qrcode instance**, and the camera is stopped first, so the two never fight over the same element.
 - **Scanner testing**: verified in headless Edge with a fake camera feed (`--use-file-for-fake-video-capture` with an MJPEG of a label), a screenshot of a printed label, and manual entry.
+- **Task codes** come from the database id after the first insert (`MT-0001`), so they are always unique without a counter table.
+- **Task visibility**: admins see all tasks; inspectors see only tasks assigned to them (others are 404). Tasks can be assigned to inspectors or admins.
+- **Creating a task with an assignee** records two history rows (created -> OPEN, then OPEN -> ASSIGNED), so the transition table is always respected.
+- **Conversion priority**: defect HIGH/MEDIUM/LOW -> task HIGH/MEDIUM/LOW; alert CRITICAL -> CRITICAL, WARNING -> MEDIUM (pre-filled, editable). The machine is locked to the source's machine.
+- **One status endpoint** (`/maintenance/<id>/status/`) handles every transition; the page only shows buttons for transitions `allowed_transitions()` returns, and the service re-checks.
+- **Dashboard task summary** counts tasks per status (visible to the user) plus open tasks past their due date.

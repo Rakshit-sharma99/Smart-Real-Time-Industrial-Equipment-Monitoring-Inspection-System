@@ -9,6 +9,7 @@ from django.views.generic import ListView
 from core.permissions import RoleRequiredMixin, admin_required, is_admin
 from inspections import services as inspection_services
 from inspections.models import Defect, Inspection
+from maintenance.models import MaintenanceTask
 
 from . import services
 from .forms import EquipmentCreateForm, EquipmentDetailsForm, EquipmentFilterForm, ThresholdForm
@@ -49,6 +50,9 @@ def equipment_detail(request, code):
         .select_related("equipment", "inspection")[:10],
         "open_assignment": Inspection.objects.open().filter(equipment=equipment, inspector=request.user).first(),
         "can_start_adhoc": inspection_services.adhoc_blocker(equipment, request.user) is None,
+        "tasks": MaintenanceTask.objects.visible_to(request.user)
+        .filter(equipment=equipment)
+        .select_related("equipment", "assigned_to")[:10],
         "page_title": equipment.equipment_code,
     }
     return render(request, "equipment/detail.html", context)

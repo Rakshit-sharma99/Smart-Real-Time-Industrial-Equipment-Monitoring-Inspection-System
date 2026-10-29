@@ -23,6 +23,7 @@
     {% endif %}
     {% if is_admin_user and equipment.is_active %}
       <a class="btn btn-outline-secondary" href="{% url 'inspections:assign' %}?equipment={{ equipment.equipment_code }}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Assign inspection</a>
+      <a class="btn btn-outline-secondary" href="{% url 'maintenance:create' %}?equipment={{ equipment.equipment_code }}"><i class="bi bi-tools" aria-hidden="true"></i> Create task</a>
     {% endif %}
     {% if is_admin_user %}
       <a class="btn btn-outline-secondary" href="{% url 'equipment:edit' equipment.equipment_code %}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
@@ -126,6 +127,7 @@
     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-alerts" type="button" role="tab" aria-controls="tab-alerts" aria-selected="false"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inspections" type="button" role="tab" aria-controls="tab-inspections" aria-selected="false"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Inspections</button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-defects" type="button" role="tab" aria-controls="tab-defects" aria-selected="false"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i> Defects</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button" role="tab" aria-controls="tab-tasks" aria-selected="false"><i class="bi bi-tools" aria-hidden="true"></i> Tasks</button></li>
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-readings" role="tabpanel">
@@ -167,6 +169,13 @@
         {% include "partials/table_wrapper.html" with table="inspections/_defects_table.html" hide_equipment=True %}
       {% else %}
         {% include "partials/empty_state.html" with icon="bi-check2-circle" title="No defects recorded" %}
+      {% endif %}
+    </div>
+    <div class="tab-pane fade" id="tab-tasks" role="tabpanel">
+      {% if tasks %}
+        {% include "partials/table_wrapper.html" with table="maintenance/_table.html" hide_equipment=True %}
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-tools" title="No maintenance tasks you can see" %}
       {% endif %}
     </div>
   </div>

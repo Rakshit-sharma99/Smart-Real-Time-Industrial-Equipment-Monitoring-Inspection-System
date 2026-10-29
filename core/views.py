@@ -10,7 +10,7 @@ from monitoring.models import Alert
 from monitoring.services import latest_readings
 
 from .permissions import get_role
-from .services import dashboard_summary
+from .services import dashboard_summary, task_summary
 
 
 def dashboard(request):
@@ -28,6 +28,7 @@ def dashboard(request):
         "recent_inspections": Inspection.objects.visible_to(request.user).select_related("equipment", "inspector")[:5],
         "trend_machines": machines,
     }
+    context["task_rows"], context["overdue_tasks"] = task_summary(request.user)
     return render(request, "core/dashboard.html", context)
 
 

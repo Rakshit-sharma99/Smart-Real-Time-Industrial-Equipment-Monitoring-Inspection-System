@@ -644,6 +644,11 @@ a.kpi-tile:hover { border-color: #cbd5e1; color: var(--ew-text); }
 .scan-result.scan-info { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
 .scanner-manual { display: flex; gap: var(--ew-space-1); }
 
+/* ---------- Maintenance ---------- */
+.task-title { min-width: 200px; }
+.task-actions { display: flex; flex-direction: column; gap: var(--ew-space-2); }
+.task-actions form + form { border-top: 1px solid var(--ew-border); padding-top: var(--ew-space-2); }
+
 /* ---------- Print ---------- */
 @media print {
   .app-sidebar, .app-topbar, .no-print, .flash-messages { display: none !important; }

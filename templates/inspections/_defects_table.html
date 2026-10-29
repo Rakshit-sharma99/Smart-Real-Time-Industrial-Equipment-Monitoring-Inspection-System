@@ -8,6 +8,7 @@
       <th scope="col">Severity</th>
       <th scope="col">Status</th>
       <th scope="col">From</th>
+      {% if is_admin_user %}<th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>{% endif %}
     </tr>
   </thead>
   <tbody>
@@ -19,6 +20,11 @@
       <td>{% include "partials/status_badge.html" with status=defect.severity label=defect.get_severity_display %}</td>
       <td>{% include "partials/status_badge.html" with status=defect.status label=defect.get_status_display %}</td>
       <td class="text-nowrap"><a href="{% url 'inspections:detail' defect.inspection_id %}">{{ defect.inspection.reference }}</a></td>
+      {% if is_admin_user %}
+      <td class="text-end text-nowrap">
+        {% if defect.status == "OPEN" %}<a class="btn btn-sm btn-outline-primary" href="{% url 'maintenance:create' %}?defect={{ defect.pk }}"><i class="bi bi-tools" aria-hidden="true"></i> Create task</a>{% endif %}
+      </td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>

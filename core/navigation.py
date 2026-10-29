@@ -20,6 +20,7 @@ NAV_ITEMS = [
     NavItem("live", "Live Monitoring", "bi-broadcast", "monitoring:live"),
     NavItem("alerts", "Alerts", "bi-bell", "alerts:list", badge_kpi="active_alerts"),
     NavItem("inspections", "Inspections", "bi-clipboard-check", "inspections:list"),
+    NavItem("maintenance", "Maintenance", "bi-tools", "maintenance:list"),
     NavItem("scanner", "QR Scanner", "bi-qr-code-scan", "inspections:scanner"),
     NavItem("settings", "Settings", "bi-gear", "core:settings"),
 ]

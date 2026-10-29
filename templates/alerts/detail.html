@@ -18,6 +18,7 @@
       <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Acknowledge</button>
     </form>
     {% endif %}
+    {% if is_admin_user %}<a class="btn btn-outline-secondary" href="{% url 'maintenance:create' %}?alert={{ alert.pk }}"><i class="bi bi-tools" aria-hidden="true"></i> Create task</a>{% endif %}
     <a class="btn btn-outline-secondary" href="{% url 'alerts:list' %}">All alerts</a>
   </div>
 </div>
@@ -36,6 +37,7 @@
           <div><span class="value-label">Latest</span><span class="value-num">{{ alert.last_value }}</span></div>
           <div><span class="value-label">Limit crossed</span><span class="value-num">{{ alert.threshold_value }}</span></div>
         </div>
+        {% for task in alert.tasks.all %}<p class="small mt-2 mb-0"><i class="bi bi-tools" aria-hidden="true"></i> Maintenance: <a href="{% url 'maintenance:detail' task.pk %}">{{ task.task_code }}</a> ({{ task.get_status_display }})</p>{% endfor %}
         <p class="small text-body-secondary mt-2 mb-0">Values in {{ alert.metric_info.unit }}.{% if alert.is_open %} Recovery: {{ alert.normal_streak }} of 3 consecutive normal readings (each at least 5 % below the warning limit).{% endif %}</p>
       </div>
     </div>

@@ -58,6 +58,7 @@
             <span>{% include "partials/status_badge.html" with status=defect.severity label=defect.get_severity_display %} {% include "partials/status_badge.html" with status=defect.status label=defect.get_status_display %}</span>
           </div>
           <div class="small">{{ defect.description }}</div>
+          {% if is_admin_user and defect.status == "OPEN" %}<a class="btn btn-sm btn-outline-primary mt-2" href="{% url 'maintenance:create' %}?defect={{ defect.pk }}"><i class="bi bi-tools" aria-hidden="true"></i> Create task</a>{% endif %}
         </li>
         {% endfor %}
       </ul>

@@ -22,6 +22,8 @@ from equipment.models import Equipment
 from equipment.services import recompute_health
 from inspections import services as inspection_services
 from inspections.models import Defect, Inspection, InspectionResponse, InspectionTemplate
+from maintenance import services as maintenance_services
+from maintenance.models import MaintenanceTask
 from monitoring.models import Alert, SensorReading, SimulatorSettings, Source
 from monitoring.services import AUTO_RESOLVE_NOTE
 from monitoring.simulation import SensorSimulator
@@ -90,19 +92,22 @@ class Command(BaseCommand):
             self.seed_alert_history(equipment)
             SimulatorSettings.load()
             inspection_count = self.seed_inspections(users, equipment)
+            self.seed_tasks(users, equipment)
 
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"  Users: {', '.join(users)} (password from DEMO_PASSWORD in .env)")
         self.stdout.write(f"  Equipment: {len(equipment)} machines")
         self.stdout.write(f"  Readings backfilled: {readings}")
         self.stdout.write(f"  Inspections: {inspection_count} (2 assigned to inspector_demo, 1 submitted with a defect)")
+        self.stdout.write(f"  Maintenance tasks: {MaintenanceTask.objects.count()} open")
         self.stdout.write("  Machines show OFFLINE until you start: python manage.py simulate_sensors")
 
     # --- steps -----------------------------------------------------------------
 
     def reset(self):
         """Delete ALL equipment-related data and the demo users (this is a demo database)."""
-        # Inspection records are protected, so delete them before the equipment.
+        # Task and inspection records are protected, so delete them before the equipment.
+        MaintenanceTask.objects.all().delete()
         Defect.objects.all().delete()
         Inspection.objects.all().delete()
         InspectionTemplate.objects.all().delete()
@@ -251,3 +256,16 @@ class Command(BaseCommand):
             for order, text in enumerate(items, start=1):
                 template.items.create(order=order, text=text)
         return template
+
+    def seed_tasks(self, users, equipment):
+        """One open maintenance task (the seeded defect is left for the demo's "convert to task" step)."""
+        if MaintenanceTask.objects.exists():
+            return
+        maintenance_services.create_task(
+            equipment=equipment["EQ-003"],
+            title="Replace spindle coolant filter",
+            description="Coolant flow looked weak during the last shift. Replace the filter cartridge and check flow.",
+            priority=MaintenanceTask.Priority.MEDIUM,
+            due_date=timezone.localdate() + timedelta(days=2),
+            created_by=users["admin_demo"],
+        )
