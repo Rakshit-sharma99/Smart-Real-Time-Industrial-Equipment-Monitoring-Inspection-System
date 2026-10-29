@@ -5,12 +5,13 @@
     <h2>Equipment</h2>
     <p class="subtitle">{{ page_obj.paginator.count|default:0 }} machine{{ page_obj.paginator.count|pluralize }} match{{ page_obj.paginator.count|pluralize:"es," }} the filters</p>
   </div>
-  {% if is_admin_user %}
   <div class="page-actions">
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan QR</a>
+    {% if is_admin_user %}
     <button class="btn btn-outline-secondary" type="submit" form="labelsForm"><i class="bi bi-printer" aria-hidden="true"></i> Print selected labels</button>
     <a class="btn btn-primary" href="{% url 'equipment:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add equipment</a>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <form class="filter-bar" method="get" role="search">

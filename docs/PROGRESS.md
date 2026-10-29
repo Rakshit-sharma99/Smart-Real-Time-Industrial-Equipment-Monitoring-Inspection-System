@@ -11,13 +11,13 @@ Each phase ends with the gate: `check`, `makemigrations --check --dry-run`, `mig
 | 4 | Dashboard, live monitoring, WebSockets, polling fallback | Done |
 | 5 | Alerts UI | Done |
 | 6 | Inspections, photos, defects | Done |
-| 7 | QR scanner page | Not started |
+| 7 | QR scanner page | Done |
 | 8 | Maintenance tasks | Not started |
 | 9 | PDF reports | Not started |
 | 10 | PWA, polish, README, acceptance walkthrough | Not started |
 
 ## Next step
-Phase 7: QR scanner page (camera, scan from file, manual entry) + GET /api/v1/equipment/lookup/.
+Phase 8: maintenance tasks (MT-0001 codes), transition table, history, convert defect/alert to task.
 
 ## How to resume
 1. `.venv\Scripts\activate`

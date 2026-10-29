@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.InspectionListView.as_view(), name="list"),
     path("assign/", views.inspection_assign, name="assign"),
     path("defects/", views.DefectListView.as_view(), name="defects"),
+    path("scan/", views.scanner, name="scanner"),
     path("adhoc/<slug:code>/", views.inspection_start_adhoc, name="start_adhoc"),
     path("photos/<int:pk>/", views.response_photo, name="photo"),
     path("templates/", views.template_list, name="template_list"),

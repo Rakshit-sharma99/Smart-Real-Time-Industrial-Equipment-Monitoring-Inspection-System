@@ -6,6 +6,7 @@
     <p class="subtitle">{% if is_admin_user %}All inspections{% else %}Your inspections{% endif %} · {{ page_obj.paginator.count|default:0 }} shown</p>
   </div>
   <div class="page-actions">
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan QR</a>
     {% if is_admin_user %}<a class="btn btn-primary" href="{% url 'inspections:assign' %}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i> Assign inspection</a>{% endif %}
   </div>
 </div>

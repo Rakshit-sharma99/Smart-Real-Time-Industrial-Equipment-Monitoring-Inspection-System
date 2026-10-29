@@ -240,3 +240,46 @@ class QrTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response["Location"])
         self.assertIn("next=", response["Location"])
+
+
+class LookupApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_inspector()
+        cls.equipment = make_equipment("EQ-001", name="Air Compressor")
+
+    def test_requires_login(self):
+        response = self.client.get("/api/v1/equipment/lookup/?q=EQ-001")
+        self.assertEqual(response.status_code, 403)
+
+    def test_by_code_case_insensitive(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/v1/equipment/lookup/?q=eq-001").json()
+        self.assertEqual(data["code"], "EQ-001")
+        self.assertEqual(data["url"], self.equipment.get_absolute_url())
+
+    def test_by_uuid(self):
+        self.client.force_login(self.user)
+        data = self.client.get(f"/api/v1/equipment/lookup/?q={self.equipment.public_id}").json()
+        self.assertEqual(data["code"], "EQ-001")
+
+    def test_unknown_is_404(self):
+        self.client.force_login(self.user)
+        for query in ["EQ-999", str(uuid.uuid4())]:
+            with self.subTest(q=query):
+                response = self.client.get(f"/api/v1/equipment/lookup/?q={query}")
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.json()["error"], "Unknown equipment")
+
+    def test_empty_query_is_400(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get("/api/v1/equipment/lookup/?q=").status_code, 400)
+
+    def test_scanner_page_for_both_roles(self):
+        for user in [self.user, make_admin()]:
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                response = self.client.get(reverse("inspections:scanner"))
+                self.assertContains(response, "html5-qrcode@2.3.8")
+                self.assertContains(response, 'integrity="sha384-')
+                self.assertContains(response, "Scan from image file")

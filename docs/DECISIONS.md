@@ -40,3 +40,7 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Photos**: validated with Pillow (not the file name), rotated by EXIF orientation, re-saved as JPEG (quality 85, max 1600 px) without metadata; replacing a photo deletes the old file. Served only via `/inspections/photos/<response_id>/` with the same `visible_to(user)` check.
 - **Defects page** lives under Inspections (tab) and shows defects from inspections the user can see.
 - **Checklist templates** are managed under Settings; they are deactivated rather than deleted (inspections reference them).
+- **Scanner lives at /inspections/scan/** (sidebar "QR Scanner"); linked from the Equipment and Inspections lists.
+- **Lookup API** accepts an equipment code (case-insensitive) or a UUID; the page itself turns a decoded `/e/<uuid>/` URL or bare UUID into the UUID first and shows "Not an equipment QR" for anything else. Manual entry also accepts a code.
+- **File scanning uses a separate hidden Html5Qrcode instance**, and the camera is stopped first, so the two never fight over the same element.
+- **Scanner testing**: verified in headless Edge with a fake camera feed (`--use-file-for-fake-video-capture` with an MJPEG of a label), a screenshot of a printed label, and manual entry.

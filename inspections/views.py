@@ -163,6 +163,11 @@ def response_photo(request, pk):
     return result
 
 
+def scanner(request):
+    """QR scanner page: camera, scan from an image file, or type a code."""
+    return render(request, "inspections/scanner.html", {"page_title": "QR Scanner"})
+
+
 # --- Creating inspections ------------------------------------------------------------------
 
 

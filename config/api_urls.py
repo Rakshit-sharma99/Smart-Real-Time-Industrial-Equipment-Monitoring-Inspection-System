@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 
 from core import api as core_api
+from equipment import api as equipment_api
 from monitoring import api as monitoring_api
 
 
@@ -23,6 +24,7 @@ urlpatterns = [
     path("ingest/", api_view(monitoring_api.IngestView), name="ingest"),
     path("dashboard/summary/", api_view(core_api.DashboardSummaryView), name="dashboard_summary"),
     path("equipment/status/", api_view(monitoring_api.EquipmentStatusView), name="equipment_status"),
+    path("equipment/lookup/", api_view(equipment_api.EquipmentLookupView), name="equipment_lookup"),
     path(
         "equipment/<slug:code>/readings/",
         api_view(monitoring_api.EquipmentReadingsView),

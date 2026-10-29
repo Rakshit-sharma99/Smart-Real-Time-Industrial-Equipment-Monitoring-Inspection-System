@@ -628,6 +628,22 @@ a.kpi-tile:hover { border-color: #cbd5e1; color: var(--ew-text); }
 .item-text { flex: 1; min-width: 0; }
 .item-delete { flex: 0 0 auto; padding-bottom: 10px; }
 
+/* ---------- QR scanner ---------- */
+.scanner-controls { display: flex; flex-wrap: wrap; gap: var(--ew-space-1); margin-bottom: 12px; }
+.scanner-controls .form-select { flex: 1 1 200px; }
+.scanner-view { position: relative; min-height: 280px; border: 2px dashed #cbd5e1; border-radius: 8px; overflow: hidden; background: #111827; }
+.scanner-view #reader { width: 100%; }
+.scanner-view #reader video { display: block; width: 100% !important; height: auto !important; }
+.scanner-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9ca3af; text-align: center; padding: 16px; }
+.scanner-placeholder .bi { font-size: 3rem; }
+.scanner-view.flash-success { animation: scan-flash 0.7s ease-out; }
+@keyframes scan-flash { 0% { border-color: var(--ew-healthy); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.45); } 100% { border-color: #cbd5e1; box-shadow: none; } }
+.scan-result { padding: 12px 14px; border-radius: 8px; margin-bottom: var(--ew-space-3); border: 1px solid var(--ew-border); background: var(--ew-surface); font-weight: 500; }
+.scan-result.scan-success { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+.scan-result.scan-error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.scan-result.scan-info { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.scanner-manual { display: flex; gap: var(--ew-space-1); }
+
 /* ---------- Print ---------- */
 @media print {
   .app-sidebar, .app-topbar, .no-print, .flash-messages { display: none !important; }

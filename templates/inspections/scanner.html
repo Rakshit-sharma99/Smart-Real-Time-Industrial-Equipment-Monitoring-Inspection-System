@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="row g-3" id="scannerPage" data-lookup-url="{% url 'api:equipment_lookup' %}" data-app-name="{{ APP_NAME }}">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Scan with camera</div>
+      <div class="card-body">
+        <div class="alert alert-warning small d-none" id="insecureNotice" role="note">
+          <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+          The camera only works on <strong>https://</strong> or <strong>http://localhost</strong>. On a phone using your PC's
+          LAN address, use <strong>Scan from image file</strong> or <strong>Type a code</strong> below.
+        </div>
+        <div class="scanner-controls">
+          <label class="visually-hidden" for="cameraSelect">Camera</label>
+          <select class="form-select" id="cameraSelect" disabled>
+            <option value="">Back camera (default)</option>
+          </select>
+          <button class="btn btn-primary" type="button" id="startScan"><i class="bi bi-camera-video" aria-hidden="true"></i> Start camera</button>
+          <button class="btn btn-outline-secondary" type="button" id="stopScan" disabled><i class="bi bi-stop-circle" aria-hidden="true"></i> Stop</button>
+        </div>
+        <div class="scanner-view" id="scannerView">
+          <div id="reader"></div>
+          <div class="scanner-placeholder" id="readerPlaceholder">
+            <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+            <span>Point the camera at an equipment QR label</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="scan-result d-none" id="scanResult" role="status" aria-live="polite"></div>
+
+    <div class="card">
+      <div class="card-header">Scan from image file</div>
+      <div class="card-body">
+        <p class="small text-body-secondary">Take a photo of the label (or pick a saved picture). Works on any phone, even without HTTPS.</p>
+        <label class="visually-hidden" for="scanFile">Image of a QR code</label>
+        <input class="form-control" type="file" id="scanFile" accept="image/*">
+        <div id="readerFile" class="d-none"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Type a code</div>
+      <div class="card-body">
+        <form id="manualForm" class="scanner-manual" novalidate>
+          <label class="visually-hidden" for="manualCode">Equipment code or ID</label>
+          <input class="form-control" id="manualCode" placeholder="e.g. EQ-001" autocomplete="off" autocapitalize="characters" required>
+          <button class="btn btn-primary" type="submit">Open</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
+<script src="{% static 'js/scanner.js' %}"></script>
+{% endblock %}
