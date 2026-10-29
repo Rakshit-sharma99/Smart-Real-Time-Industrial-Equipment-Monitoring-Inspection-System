@@ -5,6 +5,7 @@ Machine-specific values (secrets, hosts, tokens) are read from a .env file in
 the project root. See .env.example for the full list.
 """
 import os
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -198,6 +199,16 @@ LOGGING = {
         "django": {"handlers": ["console", "file"], "level": "INFO", "propagate": False},
     },
 }
+
+# --- Test runs ------------------------------------------------------------------------------
+# "manage.py test": use a fast password hasher and keep expected 403/404
+# warnings out of the output. Never affects the running app.
+
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+if TESTING:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    LOGGING["root"]["level"] = "ERROR"
+    LOGGING["loggers"]["django"]["level"] = "ERROR"
 
 # --- EquipWatch settings -------------------------------------------------------------------
 
