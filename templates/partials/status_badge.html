@@ -1,0 +1,1 @@
+{% load ui %}{# Usage: include "partials/status_badge.html" with status="WARNING" label="Warning" #}<span class="status-badge tone-{{ status|status_tone }}" data-status="{{ status }}"><i class="bi {{ status|status_icon }}" aria-hidden="true"></i><span class="status-text">{% if label %}{{ label }}{% else %}{{ status|humanize_status }}{% endif %}</span></span>

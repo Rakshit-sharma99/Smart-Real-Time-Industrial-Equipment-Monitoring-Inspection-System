@@ -1,0 +1,20 @@
+<aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
+  <div class="sidebar-inner">
+    <div class="sidebar-brand">
+      <i class="bi bi-activity" aria-hidden="true"></i>
+      <span id="appSidebarLabel">{{ APP_NAME }}</span>
+      <button type="button" class="btn-close btn-close-white d-lg-none ms-auto" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
+    </div>
+    <nav class="sidebar-nav" aria-label="Main">
+      {% for item in nav_items %}
+        <a class="sidebar-link{% if nav_active == item.key %} active{% endif %}" href="{% url item.url_name %}"{% if nav_active == item.key %} aria-current="page"{% endif %}>
+          <i class="bi {{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-footer">
+      <span class="role-chip"><i class="bi bi-person-badge" aria-hidden="true"></i> {{ user_role_label }}</span>
+      <span class="sidebar-note">Sensor data is simulated</span>
+    </div>
+  </div>
+</aside>

@@ -1,0 +1,33 @@
+<header class="app-topbar">
+  <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu">
+    <i class="bi bi-list" aria-hidden="true"></i>
+  </button>
+  <h1 class="topbar-title">{{ page_title }}</h1>
+  <div class="topbar-actions">
+    <span class="sim-pill" title="All sensor readings come from the built-in simulator, not real hardware">
+      <i class="bi bi-cpu" aria-hidden="true"></i><span class="d-none d-sm-inline">SIMULATED DATA</span><span class="d-sm-none">SIM</span>
+    </span>
+    <span class="live-indicator" id="liveIndicator" data-state="idle" role="status" title="Live updates: idle">
+      <span class="live-dot" aria-hidden="true"></span><span class="live-label d-none d-md-inline">Idle</span>
+    </span>
+    <div class="dropdown">
+      <button class="btn btn-user dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User menu">
+        <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
+        <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><span class="dropdown-item-text small text-body-secondary">Signed in as <strong>{{ user.username }}</strong><br>{{ user_role_label }}</span></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="bi bi-person" aria-hidden="true"></i> My profile</a></li>
+        <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}"><i class="bi bi-key" aria-hidden="true"></i> Change password</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out</button>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </div>
+</header>

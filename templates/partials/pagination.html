@@ -1,0 +1,22 @@
+{% if page_obj.has_other_pages %}
+<nav class="pagination-bar" aria-label="Pagination">
+  <span class="text-body-secondary small">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} total</span>
+  <ul class="pagination mb-0">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="{% querystring page=1 %}" aria-label="First page"><i class="bi bi-chevron-double-left" aria-hidden="true"></i></a></li>
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-double-left" aria-hidden="true"></i></span></li>
+      <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left" aria-hidden="true"></i></span></li>
+    {% endif %}
+    <li class="page-item active" aria-current="page"><span class="page-link">{{ page_obj.number }}</span></li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}" aria-label="Last page"><i class="bi bi-chevron-double-right" aria-hidden="true"></i></a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right" aria-hidden="true"></i></span></li>
+      <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-double-right" aria-hidden="true"></i></span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}

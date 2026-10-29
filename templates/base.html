@@ -1,0 +1,30 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f2328">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% if page_title %}{{ page_title }} · {% endif %}{{ APP_NAME }}</title>
+  {% include "partials/head_assets.html" %}
+  {% block head %}{% endblock %}
+</head>
+<body data-offline-after="{{ offline_after_seconds }}">
+  <a class="visually-hidden-focusable skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <div class="app-main">
+      {% include "partials/topbar.html" %}
+      <main class="app-content" id="main">
+        {% include "partials/messages.html" %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% include "partials/confirm_modal.html" %}
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastStack" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

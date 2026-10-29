@@ -1,0 +1,7 @@
+{# Usage: include "partials/empty_state.html" with icon="bi-inbox" title="No equipment" text="..." action_url=url action_label="Add" #}
+<div class="empty-state">
+  <i class="bi {{ icon|default:'bi-inbox' }}" aria-hidden="true"></i>
+  <p class="empty-title">{{ title }}</p>
+  {% if text %}<p class="empty-text">{{ text }}</p>{% endif %}
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+</div>
