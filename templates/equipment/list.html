@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Equipment</h2>
+    <p class="subtitle">{{ page_obj.paginator.count|default:0 }} machine{{ page_obj.paginator.count|pluralize }} match{{ page_obj.paginator.count|pluralize:"es," }} the filters</p>
+  </div>
+  {% if is_admin_user %}
+  <div class="page-actions">
+    <button class="btn btn-outline-secondary" type="submit" form="labelsForm"><i class="bi bi-printer" aria-hidden="true"></i> Print selected labels</button>
+    <a class="btn btn-primary" href="{% url 'equipment:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add equipment</a>
+  </div>
+  {% endif %}
+</div>
+
+<form class="filter-bar" method="get" role="search">
+  <div class="filter-search">
+    <label class="form-label" for="{{ filter_form.q.id_for_label }}">Search</label>{{ filter_form.q }}
+  </div>
+  <div><label class="form-label" for="{{ filter_form.equipment_type.id_for_label }}">Type</label>{{ filter_form.equipment_type }}</div>
+  <div><label class="form-label" for="{{ filter_form.location.id_for_label }}">Location</label>{{ filter_form.location }}</div>
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.active.id_for_label }}">Active</label>{{ filter_form.active }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Apply</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'equipment:list' %}">Reset</a>{% endif %}
+  </div>
+</form>
+
+{% if is_admin_user %}<form id="labelsForm" method="get" action="{% url 'equipment:label_sheet' %}" target="_blank"></form>{% endif %}
+
+{% if equipment_list %}
+  {% include "partials/table_wrapper.html" with table="equipment/_table.html" %}
+  {% include "partials/pagination.html" %}
+{% else %}
+  {% if is_admin_user and not request.GET %}
+    {% url 'equipment:create' as create_url %}
+    {% include "partials/empty_state.html" with icon="bi-hdd-stack" title="No equipment yet" text="Register your first machine to start monitoring it." action_url=create_url action_label="Add equipment" %}
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-search" title="No equipment matches these filters" text="Try clearing a filter or searching for something else." %}
+  {% endif %}
+{% endif %}
+{% endblock %}

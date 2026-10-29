@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-xl-9">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include "partials/form_errors.html" %}
+      <div class="card">
+        <div class="card-header">{% if equipment %}Edit {{ equipment.equipment_code }}{% else %}New equipment{% endif %}</div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">{% include "partials/form_field.html" with field=form.equipment_code %}</div>
+            <div class="col-md-8">{% include "partials/form_field.html" with field=form.name %}</div>
+            <div class="col-md-4">{% include "partials/form_field.html" with field=form.equipment_type %}</div>
+            <div class="col-md-5">{% include "partials/form_field.html" with field=form.location %}</div>
+            <div class="col-md-3">{% include "partials/form_field.html" with field=form.installed_on %}</div>
+            <div class="col-12">{% include "partials/form_field.html" with field=form.description %}</div>
+          </div>
+        </div>
+      </div>
+      {% if form.metric_rows %}
+      <div class="card">
+        <div class="card-header">Thresholds</div>
+        <div class="card-body">
+          {% include "equipment/_threshold_fields.html" %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{% if equipment %}Save changes{% else %}Create equipment{% endif %}</button>
+        <a class="btn btn-outline-secondary" href="{% if equipment %}{{ equipment.get_absolute_url }}{% else %}{% url 'equipment:list' %}{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+<p class="small text-body-secondary">Each metric needs <strong>0 &lt; warning &lt; critical</strong>. A reading at or above a limit raises that level.</p>
+{% for metric, warn, crit in form.metric_rows %}
+<fieldset class="threshold-row">
+  <legend class="threshold-legend">{{ metric.label }} <span class="text-body-secondary fw-normal">({{ metric.unit }})</span></legend>
+  <div class="row g-2">
+    <div class="col-6">
+      <label class="form-label small" for="{{ warn.id_for_label }}">Warning at</label>
+      {{ warn }}
+      {% for error in warn.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="col-6">
+      <label class="form-label small" for="{{ crit.id_for_label }}">Critical at</label>
+      {{ crit }}
+      {% for error in crit.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+  </div>
+</fieldset>
+{% endfor %}

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "channels",
     "core",
     "accounts",
+    "equipment",
 ]
 
 MIDDLEWARE = [

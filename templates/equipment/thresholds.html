@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-xl-6">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include "partials/form_errors.html" %}
+      <div class="card">
+        <div class="card-header">Thresholds for {{ equipment.equipment_code }} · {{ equipment.name }}</div>
+        <div class="card-body">
+          {% include "equipment/_threshold_fields.html" %}
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save thresholds</button>
+        <a class="btn btn-outline-secondary" href="{{ equipment.get_absolute_url }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

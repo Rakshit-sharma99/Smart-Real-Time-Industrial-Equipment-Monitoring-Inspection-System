@@ -15,6 +15,7 @@ class NavItem:
 # do inside a section is limited by the views themselves.
 NAV_ITEMS = [
     NavItem("overview", "Overview", "bi-grid-1x2", "core:dashboard"),
+    NavItem("equipment", "Equipment", "bi-hdd-stack", "equipment:list"),
     NavItem("settings", "Settings", "bi-gear", "core:settings"),
 ]
 

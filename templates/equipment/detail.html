@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h2>{{ equipment.equipment_code }} · {{ equipment.name }}</h2>
+      <span id="equipmentStatus">{% include "partials/status_badge.html" with status=equipment.display_status label=equipment.display_status_label %}</span>
+    </div>
+    <p class="subtitle">{{ equipment.get_equipment_type_display }} · {{ equipment.location }}</p>
+  </div>
+  <div class="page-actions">
+    {% block equipment_actions %}{% endblock %}
+    {% if is_admin_user %}
+      <a class="btn btn-outline-secondary" href="{% url 'equipment:edit' equipment.equipment_code %}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+      <a class="btn btn-outline-secondary" href="{% url 'equipment:thresholds' equipment.equipment_code %}"><i class="bi bi-sliders" aria-hidden="true"></i> Thresholds</a>
+      <form method="post" action="{% url 'equipment:set_active' equipment.equipment_code %}"
+            {% if equipment.is_active %}data-confirm="Deactivate {{ equipment.equipment_code }}? It will stop receiving simulated readings and leave the health counts. All history is kept." data-confirm-button="Deactivate"{% else %}data-confirm="Reactivate {{ equipment.equipment_code }}?" data-confirm-button="Reactivate" data-confirm-tone="primary"{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="active" value="{{ equipment.is_active|yesno:'0,1' }}">
+        {% if equipment.is_active %}
+          <button class="btn btn-outline-danger" type="submit"><i class="bi bi-power" aria-hidden="true"></i> Deactivate</button>
+        {% else %}
+          <button class="btn btn-outline-primary" type="submit"><i class="bi bi-power" aria-hidden="true"></i> Reactivate</button>
+        {% endif %}
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if not equipment.is_active %}
+<div class="alert alert-secondary"><i class="bi bi-info-circle" aria-hidden="true"></i> This machine is deactivated. It keeps its history but is not monitored.</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    {% block equipment_main_top %}{% endblock %}
+
+    <div class="card">
+      <div class="card-header">Details</div>
+      <div class="card-body">
+        <dl class="detail-list">
+          <dt>Equipment code</dt><dd class="fw-semibold">{{ equipment.equipment_code }}</dd>
+          <dt>Name</dt><dd>{{ equipment.name }}</dd>
+          <dt>Type</dt><dd>{{ equipment.get_equipment_type_display }}</dd>
+          <dt>Location</dt><dd>{{ equipment.location }}</dd>
+          <dt>Installed on</dt><dd>{{ equipment.installed_on|date:"d M Y"|default:"—" }}</dd>
+          <dt>Last reading</dt><dd>{% if equipment.last_reading_at %}{{ equipment.last_reading_at|date:"d M Y, H:i:s" }}{% else %}never{% endif %}</dd>
+          {% if is_admin_user %}<dt>Simulator mode</dt><dd>{{ equipment.get_sim_mode_display }}</dd>{% endif %}
+          {% if equipment.description %}<dt>Description</dt><dd>{{ equipment.description|linebreaksbr }}</dd>{% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Thresholds
+        {% if is_admin_user %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'equipment:thresholds' equipment.equipment_code %}">Edit</a>{% endif %}
+      </div>
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Warning at</th><th scope="col" class="num">Critical at</th><th scope="col">Unit</th></tr></thead>
+            <tbody>
+              {% for metric, warn, crit in equipment.threshold_rows %}
+              <tr><td>{{ metric.label }}</td><td class="num">{{ warn }}</td><td class="num">{{ crit }}</td><td>{{ metric.unit }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">Upper limits only: a value at or above a limit raises that level. Higher is always worse.</div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">QR label</div>
+      <div class="card-body text-center">
+        <img class="qr-image" src="{% url 'equipment:qr_png' equipment.equipment_code %}" alt="QR code for {{ equipment.equipment_code }}" width="200" height="200">
+        <p class="small text-body-secondary mt-2 mb-3">Scanning opens this page after sign-in.<br><code class="small">{{ equipment.qr_target_url }}</code></p>
+        {% if is_admin_user %}
+        <div class="d-grid gap-2">
+          <a class="btn btn-outline-secondary" href="{% url 'equipment:qr_png' equipment.equipment_code %}?download=1"><i class="bi bi-download" aria-hidden="true"></i> Download PNG</a>
+          <a class="btn btn-outline-secondary" href="{% url 'equipment:label' equipment.equipment_code %}" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print label</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% block equipment_side %}{% endblock %}
+  </div>
+</div>
+{% block equipment_tabs %}{% endblock %}
+{% endblock %}
