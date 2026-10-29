@@ -37,10 +37,10 @@ DEMO_USERS = [
 T = Equipment.EquipmentType
 DEMO_EQUIPMENT = [
     # code, name, type, location, extra fields
-    ("EQ-001", "Air Compressor AC-1", T.AIR_COMPRESSOR, "Compressor House", {"pres_warn": "9.00", "pres_crit": "11.00"}),
+    ("EQ-001", "Air Compressor AC-1", T.AIR_COMPRESSOR, "Compressor House", {"pres_warn": Decimal("9.00"), "pres_crit": Decimal("11.00")}),
     ("EQ-002", "Hydraulic Pump HP-2", T.HYDRAULIC_PUMP, "Press Shop", {}),
     ("EQ-003", "CNC Milling Centre", T.CNC_MACHINE, "Machining Bay B", {"sim_mode": Equipment.SimMode.DRIFT}),
-    ("EQ-004", "Steam Boiler B-1", T.BOILER, "Boiler House", {"temp_warn": "95.00", "temp_crit": "110.00"}),
+    ("EQ-004", "Steam Boiler B-1", T.BOILER, "Boiler House", {"temp_warn": Decimal("95.00"), "temp_crit": Decimal("110.00")}),
     ("EQ-005", "Conveyor Drive Motor", T.CONVEYOR_MOTOR, "Packing Line 1", {}),
     ("EQ-006", "Cooling Tower CT-1", T.COOLING_TOWER, "Utility Yard", {"is_active": False}),
 ]

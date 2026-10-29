@@ -13,3 +13,10 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Settings landing page**: `/settings/` sends admins to the users page (later the simulator page) and inspectors to their profile; settings sub-pages share a tab bar.
 - **Admin self-protection**: an admin cannot deactivate their own account or remove their own Admin role (prevents lock-out).
 - **Demo user names** are fictional placeholders (Asha Admin, Ivan Inspector, Isha Inspector).
+- **Sim modes affect one metric**: a machine's sim mode drives its *primary* metric (by type: compressor/pump -> pressure, CNC/conveyor -> vibration, boiler/cooling tower/other -> temperature); the other two metrics stay NORMAL. One mode change = one clear alert in the demo.
+- **Readings are server-timestamped**: the ingest API does not accept `recorded_at`; `process_reading()` uses the server clock. Source is always SIMULATED for the simulator token (DEVICE is reserved).
+- **Ingest response**: 201 with `{"accepted", "rejected"}` when at least one reading is stored; 400 with the standard error shape when none are.
+- **Measurements must be >= 0** (all three metrics), consistent with the upper-limit-only simplification.
+- **Simulator "last reading received"** comes from `SimulatorSettings.last_ingest_at`, updated by the ingest view (backfilled seed readings do not count).
+- **Seed backfill** is generated in NORMAL mode and written directly (no alerts); one resolved historical alert is added for EQ-003 so alert history is not empty. `--reset` deletes all equipment (cascading readings/alerts) and the demo users.
+- **Alert on_delete**: readings and alerts cascade with equipment (equipment is never hard-deleted in the UI; only superusers can delete in /admin/).

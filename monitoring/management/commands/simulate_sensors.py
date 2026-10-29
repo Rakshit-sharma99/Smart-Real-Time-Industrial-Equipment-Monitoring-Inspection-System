@@ -179,3 +179,4 @@ class Command(BaseCommand):
         if result.get("error"):
             line += f" | {result['error']}"
         self.stdout.write(line)
+        self.stdout.flush()  # show each line immediately, even when output is piped

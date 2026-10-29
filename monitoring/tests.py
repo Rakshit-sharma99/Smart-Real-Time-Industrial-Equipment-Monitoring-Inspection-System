@@ -286,9 +286,9 @@ class SimulatorTests(TestCase):
 
     def test_drift_reaches_critical_then_resets(self):
         pressures = [v["pressure_bar"] for v in self.values(Equipment.SimMode.DRIFT, 40)]
-        peak_index = pressures.index(max(pressures))
-        self.assertGreaterEqual(max(pressures), Decimal("10"))
-        self.assertLess(pressures[peak_index + 1], Decimal("8"))
+        crit, warn = Decimal("10"), Decimal("8")
+        resets = [i for i in range(len(pressures) - 1) if pressures[i] >= crit and pressures[i + 1] < warn]
+        self.assertTrue(resets, "DRIFT should reach critical and then drop back to normal")
 
 
 @override_settings(SIMULATOR_TOKEN="test-token-123")
