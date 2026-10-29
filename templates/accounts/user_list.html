@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="toolbar">
+  <form class="toolbar-search" method="get" role="search">
+    <input class="form-control" type="search" name="q" value="{{ request.GET.q }}" placeholder="Search users" aria-label="Search users">
+    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search</span></button>
+  </form>
+  <a class="btn btn-primary" href="{% url 'accounts:user_create' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Add user</a>
+</div>
+{% if users %}
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="fw-medium">{{ u.username }}{% if u.is_superuser %} <span class="badge text-bg-light border">superuser</span>{% endif %}</td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
+          <td>{{ u.email|default:"—" }}</td>
+          <td>{% if u.is_superuser %}Admin{% else %}{{ u.profile.get_role_display }}{% endif %}</td>
+          <td>{% if u.is_active %}{% include "partials/status_badge.html" with status="HEALTHY" label="Active" %}{% else %}{% include "partials/status_badge.html" with status="INACTIVE" label="Inactive" %}{% endif %}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:user_edit' u.pk %}">Edit</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:user_password' u.pk %}">Reset password</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include "partials/pagination.html" %}
+{% else %}
+{% include "partials/empty_state.html" with icon="bi-people" title="No users found" text="Try a different search." %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends user.is_authenticated|yesno:"base.html,base_minimal.html" %}
+{% block content %}
+<div class="error-page">
+  <i class="bi bi-signpost-split" aria-hidden="true"></i>
+  <p class="error-code">404</p>
+  <h2 class="h4">Page not found</h2>
+  <p class="text-body-secondary">The page or record you asked for does not exist, or you cannot see it.</p>
+  <a class="btn btn-primary" href="{% url 'core:dashboard' %}">Back to overview</a>
+</div>
+{% endblock %}

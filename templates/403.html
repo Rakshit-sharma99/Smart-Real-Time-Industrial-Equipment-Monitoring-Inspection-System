@@ -1,0 +1,10 @@
+{% extends user.is_authenticated|yesno:"base.html,base_minimal.html" %}
+{% block content %}
+<div class="error-page">
+  <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  <p class="error-code">403</p>
+  <h2 class="h4">You don't have access to this page</h2>
+  <p class="text-body-secondary">Your role ({{ user_role_label|default:"guest" }}) does not allow this action. If you think this is a mistake, ask an administrator.</p>
+  <a class="btn btn-primary" href="{% url 'core:dashboard' %}">Back to overview</a>
+</div>
+{% endblock %}

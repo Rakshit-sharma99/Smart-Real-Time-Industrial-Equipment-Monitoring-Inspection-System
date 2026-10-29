@@ -1,0 +1,21 @@
+{% extends "base_minimal.html" %}
+{% block content %}
+<div class="auth-card">
+  <h1 class="h4 mb-1">Sign in</h1>
+  <p class="text-body-secondary mb-4">Equipment monitoring &amp; inspection</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form_errors.html" %}
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/form_field.html" with field=form.password %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn btn-primary w-100" type="submit"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Sign in</button>
+  </form>
+  {% if DEBUG %}
+  <div class="demo-hint">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    Demo accounts: <code>admin_demo</code>, <code>inspector_demo</code>, <code>inspector2_demo</code>. Password is <code>DEMO_PASSWORD</code> from <code>.env</code>.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="row">
+  <div class="col-lg-8 col-xl-6">
+    <div class="card">
+      <div class="card-header">{% if edited_user %}Edit {{ edited_user.username }}{% else %}Add user{% endif %}</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:user_list' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

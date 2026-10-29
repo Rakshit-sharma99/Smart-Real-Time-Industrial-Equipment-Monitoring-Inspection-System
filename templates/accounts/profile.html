@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="row">
+  <div class="col-lg-7 col-xl-6">
+    <div class="card">
+      <div class="card-header">My profile</div>
+      <div class="card-body">
+        <dl class="row small mb-3">
+          <dt class="col-4 text-body-secondary fw-normal">Username</dt><dd class="col-8">{{ user.username }}</dd>
+          <dt class="col-4 text-body-secondary fw-normal">Role</dt><dd class="col-8">{{ user_role_label }}</dd>
+        </dl>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+          <button class="btn btn-primary" type="submit">Save profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
