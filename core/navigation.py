@@ -34,7 +34,8 @@ SECTION_BY_NAMESPACE = {
 # Individual views that live in one app but belong to another sidebar section.
 SECTION_BY_VIEW = {
     "core:settings": "settings",
-    "core:simulator_settings": "settings",
+    "monitoring:simulator_settings": "settings",
+    "monitoring:set_sim_mode": "settings",
     "inspections:scanner": "scanner",
 }
 

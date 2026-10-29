@@ -59,6 +59,14 @@ def classify(value, warn, crit):
     return NORMAL
 
 
+STATUS_TONES = {NORMAL: "healthy", WARNING: "warning", CRITICAL: "critical"}
+
+
+def tone_for(status):
+    """CSS tone for a metric status; 'offline' when there is no reading."""
+    return STATUS_TONES.get(status, "offline")
+
+
 def worst(statuses):
     """The most severe status in the list (NORMAL if the list is empty)."""
     return max(statuses, key=SEVERITY_RANK.__getitem__, default=NORMAL)

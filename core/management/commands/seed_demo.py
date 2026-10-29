@@ -6,13 +6,26 @@ Create demo data for local development and the viva demonstration.
 
 Refuses to run when DEBUG=False so it can never touch a production database.
 """
+import random
+from datetime import timedelta
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from accounts.models import Role
+from equipment.metrics import VIBRATION
 from equipment.models import Equipment
+from equipment.services import recompute_health
+from monitoring.models import Alert, SensorReading, SimulatorSettings, Source
+from monitoring.services import AUTO_RESOLVE_NOTE
+from monitoring.simulation import SensorSimulator
+
+BACKFILL_HOURS = 24
+BACKFILL_STEP_MINUTES = 5
 
 DEMO_USERS = [
     # username, first name, last name, role
@@ -52,16 +65,22 @@ class Command(BaseCommand):
                 self.reset()
             users = self.seed_users()
             equipment = self.seed_equipment()
+            readings = self.seed_readings(equipment)
+            self.seed_alert_history(equipment)
+            SimulatorSettings.load()
 
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"  Users: {', '.join(users)} (password from DEMO_PASSWORD in .env)")
         self.stdout.write(f"  Equipment: {len(equipment)} machines")
+        self.stdout.write(f"  Readings backfilled: {readings}")
+        self.stdout.write("  Machines show OFFLINE until you start: python manage.py simulate_sensors")
 
     # --- steps -----------------------------------------------------------------
 
     def reset(self):
         """Delete ALL equipment-related data and the demo users (this is a demo database)."""
-        Equipment.objects.all().delete()
+        Equipment.objects.all().delete()  # cascades to readings and alerts
+        SimulatorSettings.objects.all().delete()
         User.objects.filter(username__in=[u[0] for u in DEMO_USERS]).delete()
         self.stdout.write("Existing demo data deleted.")
 
@@ -91,3 +110,62 @@ class Command(BaseCommand):
             machine, _ = Equipment.objects.get_or_create(equipment_code=code, defaults=fields)
             equipment[code] = machine
         return equipment
+
+    def seed_readings(self, equipment):
+        """
+        24 h of history at 5-minute steps so charts are not empty. Generated
+        with the simulator in NORMAL mode and saved directly (no alerts).
+        Machines that already have readings are skipped.
+        """
+        simulator = SensorSimulator(rng=random.Random(42))
+        now = timezone.now()
+        steps = BACKFILL_HOURS * 60 // BACKFILL_STEP_MINUTES
+        created = 0
+        for machine in equipment.values():
+            if machine.readings.exists():
+                continue
+            # The deactivated machine gets history that ends a week ago.
+            end = now if machine.is_active else now - timedelta(days=7)
+            rows = []
+            for step in range(steps, 0, -1):
+                values = simulator.next_values(machine, noise_pct=2.0, mode=Equipment.SimMode.NORMAL)
+                rows.append(SensorReading(
+                    equipment=machine,
+                    recorded_at=end - timedelta(minutes=BACKFILL_STEP_MINUTES * (step - 1)),
+                    source=Source.SIMULATED,
+                    **values,
+                ))
+            SensorReading.objects.bulk_create(rows)
+            created += len(rows)
+            machine.last_reading_at = rows[-1].recorded_at
+            machine.save(update_fields=["last_reading_at", "updated_at"])
+            recompute_health(machine)
+        return created
+
+    def seed_alert_history(self, equipment):
+        """One resolved alert from yesterday so the alert history is not empty."""
+        machine = equipment["EQ-003"]
+        if machine.alerts.exists():
+            return
+        start = timezone.now() - timedelta(hours=20)
+        Alert.objects.create(
+            equipment=machine,
+            metric=VIBRATION.key,
+            severity=Alert.Severity.CRITICAL,
+            status=Alert.Status.RESOLVED,
+            first_value=Decimal("7.40"),
+            last_value=Decimal("5.10"),
+            peak_value=Decimal("11.32"),
+            threshold_value=machine.vib_crit,
+            description=(
+                f"Escalated to CRITICAL. {VIBRATION.label} reached 11.32 {VIBRATION.unit} on "
+                f"{machine.equipment_code} ({machine.name}), at or above the critical limit of "
+                f"{machine.vib_crit} {VIBRATION.unit}. Source: SIMULATED sensor data "
+                "(demo reading, not a real emergency)."
+            ),
+            created_at=start,
+            last_seen_at=start + timedelta(minutes=6),
+            escalated_at=start + timedelta(minutes=4),
+            resolved_at=start + timedelta(minutes=9),
+            resolution_notes=AUTO_RESOLVE_NOTE,
+        )

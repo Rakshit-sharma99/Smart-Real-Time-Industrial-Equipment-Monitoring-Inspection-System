@@ -1,6 +1,7 @@
 {# Tabs shown at the top of every Settings page. Admin-only tabs are hidden for inspectors (and the views refuse them anyway). #}
 <ul class="nav nav-underline settings-nav mb-3">
   {% if is_admin_user %}
+    <li class="nav-item"><a class="nav-link{% if settings_tab == 'simulator' %} active{% endif %}" href="{% url 'monitoring:simulator_settings' %}">Simulator</a></li>
     <li class="nav-item"><a class="nav-link{% if settings_tab == 'users' %} active{% endif %}" href="{% url 'accounts:user_list' %}">Users &amp; roles</a></li>
   {% endif %}
   <li class="nav-item"><a class="nav-link{% if settings_tab == 'profile' %} active{% endif %}" href="{% url 'accounts:profile' %}">My profile</a></li>

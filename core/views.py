@@ -12,9 +12,9 @@ def dashboard(request):
 
 
 def settings_home(request):
-    """Admins land on the user list; inspectors on their own profile."""
+    """Admins land on the simulator settings; inspectors on their own profile."""
     if get_role(request.user) == Role.ADMIN:
-        return redirect("accounts:user_list")
+        return redirect("monitoring:simulator_settings")
     return redirect("accounts:profile")
 
 

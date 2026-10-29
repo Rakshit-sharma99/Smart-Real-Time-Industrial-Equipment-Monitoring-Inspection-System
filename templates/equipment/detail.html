@@ -33,7 +33,23 @@
 
 <div class="row g-3">
   <div class="col-lg-8">
-    {% block equipment_main_top %}{% endblock %}
+    <div class="card" id="currentReadings" data-code="{{ equipment.equipment_code }}">
+      <div class="card-header">
+        Current readings
+        <span class="small text-body-secondary fw-normal">{% if latest_reading %}{{ latest_reading.get_source_display }} · <span data-field="recorded_at" data-time="{{ latest_reading.recorded_at.isoformat }}">{{ latest_reading.recorded_at|date:"H:i:s" }}</span>{% else %}No readings yet{% endif %}</span>
+      </div>
+      <div class="card-body">
+        <div class="metric-grid">
+          {% for card in metric_cards %}
+          <div class="metric-tile tone-{{ card.tone }}" data-metric="{{ card.metric.key }}" data-warn="{{ card.warn }}" data-crit="{{ card.crit }}">
+            <div class="metric-label">{{ card.metric.label }}</div>
+            <div class="metric-value"><span data-value>{% if card.value is not None %}{{ card.value }}{% else %}—{% endif %}</span> <small>{{ card.metric.unit }}</small></div>
+            <div class="metric-limits">warn {{ card.warn }} · crit {{ card.crit }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="card-header">Details</div>
@@ -89,5 +105,31 @@
     {% block equipment_side %}{% endblock %}
   </div>
 </div>
-{% block equipment_tabs %}{% endblock %}
+
+<div class="card mt-1">
+  <ul class="nav nav-underline nav-tabs-card" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-readings" type="button" role="tab" aria-controls="tab-readings" aria-selected="true"><i class="bi bi-activity" aria-hidden="true"></i> Readings</button></li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-readings" role="tabpanel">
+      {% if recent_readings %}
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th scope="col">Time</th><th scope="col" class="num">Temp (°C)</th><th scope="col" class="num">Vibration (mm/s)</th><th scope="col" class="num">Pressure (bar)</th><th scope="col">Source</th></tr></thead>
+            <tbody>
+              {% for r in recent_readings %}
+              <tr><td class="text-nowrap">{{ r.recorded_at|date:"d M, H:i:s" }}</td><td class="num">{{ r.temperature_c }}</td><td class="num">{{ r.vibration_mm_s }}</td><td class="num">{{ r.pressure_bar }}</td><td>{{ r.get_source_display }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer small text-body-secondary">Latest 20 readings. All values are simulated.</div>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-activity" title="No readings yet" text="Start the simulator to stream readings for this machine." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

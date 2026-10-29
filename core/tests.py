@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from accounts.models import Role
 from equipment.models import Equipment
+from monitoring.models import Alert, SensorReading
 
 from .testutils import make_admin, make_inspector
 
@@ -39,7 +40,21 @@ class AdminOnlyUrlMatrixTests(TestCase):
             reverse("equipment:label", args=[code]),
             reverse("equipment:label_sheet") + f"?codes={code}",
             reverse("equipment:qr_png", args=[code]) + "?download=1",
+            reverse("monitoring:simulator_settings"),
         ]
+
+    def test_inspector_cannot_post_admin_actions(self):
+        self.client.force_login(self.inspector)
+        code = self.equipment.equipment_code
+        for url in [
+            reverse("equipment:set_active", args=[code]),
+            reverse("monitoring:set_sim_mode", args=[code]),
+        ]:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.post(url, {"active": "0", "sim_mode": "OFFLINE"}).status_code, 403)
+        self.equipment.refresh_from_db()
+        self.assertTrue(self.equipment.is_active)
+        self.assertEqual(self.equipment.sim_mode, Equipment.SimMode.NORMAL)
 
     def test_inspector_gets_403(self):
         self.client.force_login(self.inspector)
@@ -62,9 +77,11 @@ class AdminOnlyUrlMatrixTests(TestCase):
 
 
 class NavigationTests(TestCase):
-    def test_admin_settings_lands_on_users(self):
+    def test_admin_settings_lands_on_simulator(self):
         self.client.force_login(make_admin())
-        self.assertRedirects(self.client.get(reverse("core:settings")), reverse("accounts:user_list"))
+        self.assertRedirects(
+            self.client.get(reverse("core:settings")), reverse("monitoring:simulator_settings")
+        )
 
     def test_inspector_settings_lands_on_profile(self):
         self.client.force_login(make_inspector())
@@ -105,3 +122,13 @@ class SeedDemoTests(TestCase):
         self.assertEqual(Equipment.objects.count(), 6)
         self.assertEqual(Equipment.objects.filter(is_active=False).count(), 1)
         self.assertEqual(Equipment.objects.filter(sim_mode=Equipment.SimMode.DRIFT).count(), 1)
+        # 24 h at 5-minute steps for each machine (run twice above: no duplicates)
+        self.assertEqual(SensorReading.objects.count(), 6 * 288)
+        self.assertEqual(Alert.objects.filter(status=Alert.Status.RESOLVED).count(), 1)
+
+    @override_settings(DEBUG=True, DEMO_PASSWORD="Demo-pass-123")
+    def test_reset_recreates_cleanly(self):
+        call_command("seed_demo", stdout=StringIO())
+        call_command("seed_demo", "--reset", stdout=StringIO())
+        self.assertEqual(Equipment.objects.count(), 6)
+        self.assertEqual(SensorReading.objects.count(), 6 * 288)

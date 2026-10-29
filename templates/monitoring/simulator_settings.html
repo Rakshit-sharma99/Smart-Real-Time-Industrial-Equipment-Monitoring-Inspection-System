@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">
+        Simulator status
+        {% if running %}
+          {% include "partials/status_badge.html" with status="HEALTHY" label="Receiving data" %}
+        {% else %}
+          {% include "partials/status_badge.html" with status="OFFLINE" label="Not running" %}
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <p class="mb-2">
+          Last reading received:
+          <strong>{% if seconds_since is None %}never{% else %}{{ seconds_since }} s ago{% endif %}</strong>
+          {% if sim.last_ingest_at %}<span class="text-body-secondary small">({{ sim.last_ingest_at|date:"d M Y, H:i:s" }})</span>{% endif %}
+        </p>
+        <p class="small text-body-secondary">The simulator never starts by itself. Run it in a second terminal while the web server is running:</p>
+        <pre class="code-block"><code>python manage.py simulate_sensors</code></pre>
+        <p class="small text-body-secondary mb-2">or the VS Code task <strong>Run simulator</strong>. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> in that terminal to stop it.</p>
+        <p class="small text-body-secondary mb-0">Options: <code>--interval 5</code>, <code>--equipment EQ-001</code>, <code>--once</code>, <code>--url http://127.0.0.1:8000</code></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Global settings</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+          <button class="btn btn-primary" type="submit">Save settings</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Per-machine simulator mode</div>
+      <div class="card-body pb-0">
+        <p class="small text-body-secondary">A mode changes the machine's <strong>primary metric</strong> only; the other two stay normal. Changes apply on the simulator's next tick.</p>
+      </div>
+      {% if machines %}
+      <ul class="list-group list-group-flush sim-mode-list">
+        {% for row in machines %}
+        <li class="list-group-item">
+          <div class="sim-mode-row">
+            <div class="sim-mode-info">
+              <a class="fw-semibold" href="{{ row.equipment.get_absolute_url }}">{{ row.equipment.equipment_code }}</a>
+              <span class="text-body-secondary">{{ row.equipment.name }}</span>
+              <div class="small text-body-secondary">Affects: {{ row.primary_metric.label }} · {% include "partials/status_badge.html" with status=row.equipment.display_status label=row.equipment.display_status_label %}</div>
+            </div>
+            <form class="sim-mode-form" method="post" action="{% url 'monitoring:set_sim_mode' row.equipment.equipment_code %}">
+              {% csrf_token %}
+              <label class="visually-hidden" for="mode-{{ row.equipment.equipment_code }}">Simulator mode for {{ row.equipment.equipment_code }}</label>
+              <select class="form-select" id="mode-{{ row.equipment.equipment_code }}" name="sim_mode">
+                {% for value, label in sim_modes %}
+                  <option value="{{ value }}"{% if value == row.equipment.sim_mode %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-outline-primary" type="submit">Apply</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-hdd-stack" title="No active equipment" text="Add or reactivate equipment to simulate it." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
