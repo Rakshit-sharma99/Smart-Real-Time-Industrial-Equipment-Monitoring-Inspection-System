@@ -1,0 +1,1 @@
+{# One live-updating metric value. Usage: include "partials/metric_value.html" with code=eq.equipment_code m=row #}<span class="live-val tone-{{ m.tone }}" data-live-value data-code="{{ code }}" data-metric="{{ m.metric.key }}" data-warn="{{ m.warn }}" data-crit="{{ m.crit }}">{% if m.value is not None %}{{ m.value }}{% else %}—{% endif %}</span>

@@ -10,7 +10,7 @@ database transaction it:
 After the transaction commits, the result is broadcast to open dashboards.
 """
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import partial
 
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -54,9 +54,9 @@ def process_reading(equipment, *, temperature_c, vibration_mm_s, pressure_bar, s
         # 1. validate + save
         reading = SensorReading(
             equipment=equipment,
-            temperature_c=temperature_c,
-            vibration_mm_s=vibration_mm_s,
-            pressure_bar=pressure_bar,
+            temperature_c=to_measurement(temperature_c),
+            vibration_mm_s=to_measurement(vibration_mm_s),
+            pressure_bar=to_measurement(pressure_bar),
             source=source,
         )
         reading.full_clean()
@@ -82,6 +82,14 @@ def process_reading(equipment, *, temperature_c, vibration_mm_s, pressure_bar, s
         transaction.on_commit(partial(broadcast.broadcast_reading, reading, equipment, alert_events))
 
     return ReadingResult(reading, equipment.health_status, alert_events)
+
+
+def to_measurement(value):
+    """Round to the stored precision (2 decimals) so saved, broadcast and API values match."""
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        raise ValidationError(f"{value!r} is not a number.")
 
 
 def update_alert_for_metric(equipment, metric, value, status, source, now):

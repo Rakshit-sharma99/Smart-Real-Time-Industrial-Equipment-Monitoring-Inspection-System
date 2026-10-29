@@ -1,9 +1,115 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
-<div class="card">
-  <div class="card-body">
-    <h2 class="h5">Welcome, {{ user.get_full_name|default:user.username }}</h2>
-    <p class="text-body-secondary mb-0">You are signed in as <strong>{{ user_role_label }}</strong>.</p>
+{% url 'equipment:list' as equipment_url %}
+<section class="kpi-grid" aria-label="Key figures">
+  {% include "partials/kpi_tile.html" with label="Total equipment" value=summary.total icon="bi-hdd-stack" tone="info" kpi="total" href=equipment_url %}
+  {% include "partials/kpi_tile.html" with label="Healthy" value=summary.healthy icon="bi-check-circle" tone="healthy" kpi="healthy" href=equipment_url|add:"?status=HEALTHY" %}
+  {% include "partials/kpi_tile.html" with label="Warning" value=summary.warning icon="bi-exclamation-triangle" tone="warning" kpi="warning" href=equipment_url|add:"?status=WARNING" %}
+  {% include "partials/kpi_tile.html" with label="Critical" value=summary.critical icon="bi-x-octagon" tone="critical" kpi="critical" href=equipment_url|add:"?status=CRITICAL" %}
+  {% include "partials/kpi_tile.html" with label="Offline" value=summary.offline icon="bi-wifi-off" tone="neutral" kpi="offline" href=equipment_url|add:"?status=OFFLINE" %}
+  {% include "partials/kpi_tile.html" with label="Active alerts" value=summary.active_alerts icon="bi-bell" tone="critical" kpi="active_alerts" %}
+</section>
+
+<div class="row g-3">
+  <div class="col-lg-5 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header">Equipment health</div>
+      <div class="card-body">
+        <div class="chart-box chart-box-sm"><canvas id="healthChart" role="img" aria-label="Doughnut chart of equipment health"></canvas></div>
+        <p class="small text-body-secondary mb-0 mt-2">Active machines only. Offline = no reading for {{ offline_after_seconds }} s.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7 col-xl-8">
+    <div class="card h-100">
+      <div class="card-header">
+        Temperature trend
+        {% if trend_machines %}
+        <div>
+          <label class="visually-hidden" for="trendMachine">Machine</label>
+          <select class="form-select form-select-sm" id="trendMachine">
+            {% for eq in trend_machines %}<option value="{{ eq.equipment_code }}">{{ eq.equipment_code }} · {{ eq.name }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if trend_machines %}
+          <div class="chart-box"><canvas id="trendChart" role="img" aria-label="Temperature trend of the selected machine"></canvas></div>
+        {% else %}
+          {% include "partials/empty_state.html" with icon="bi-graph-up" title="No active equipment" text="Add equipment to see trends." %}
+        {% endif %}
+      </div>
+    </div>
   </div>
 </div>
+
+<div class="row g-3 mt-0">
+  <div class="col-xl-7">
+    <div class="card">
+      <div class="card-header">
+        Equipment status
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'monitoring:live' %}"><i class="bi bi-broadcast" aria-hidden="true"></i> Live monitoring</a>
+      </div>
+      {% if equipment_rows %}
+      <div class="table-wrap">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr><th scope="col">Machine</th><th scope="col">Status</th><th scope="col" class="num">Temp °C</th><th scope="col" class="num">Vib mm/s</th><th scope="col" class="num">Press bar</th><th scope="col">Updated</th></tr>
+            </thead>
+            <tbody>
+              {% for row in equipment_rows %}
+              {% with eq=row.equipment %}
+              <tr>
+                <td><a class="fw-semibold" href="{{ eq.get_absolute_url }}">{{ eq.equipment_code }}</a><div class="small text-body-secondary text-truncate cell-sub">{{ eq.name }}</div></td>
+                <td><span class="js-live-status" data-code="{{ eq.equipment_code }}" data-last-reading="{{ eq.last_reading_at.isoformat|default:'' }}">{% include "partials/status_badge.html" with status=eq.display_status label=eq.display_status_label %}</span></td>
+                {% for m in row.metrics %}<td class="num">{% include "partials/metric_value.html" with code=eq.equipment_code %}</td>{% endfor %}
+                <td class="text-nowrap small text-body-secondary"><span data-live-time data-code="{{ eq.equipment_code }}"{% if eq.last_reading_at %} data-time="{{ eq.last_reading_at.isoformat }}"{% endif %}>{% if eq.last_reading_at %}{{ eq.last_reading_at|timesince }} ago{% else %}never{% endif %}</span></td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-hdd-stack" title="No active equipment" %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="card">
+      <div class="card-header">Recent alerts</div>
+      {% if recent_alerts %}
+      <ul class="list-group list-group-flush">
+        {% for alert in recent_alerts %}
+        <li class="list-group-item alert-row">
+          <div class="d-flex justify-content-between gap-2">
+            <div class="min-w-0">
+              <span class="fw-semibold">{{ alert.equipment.equipment_code }}</span>
+              <span class="text-body-secondary">· {{ alert.metric_info.label }} {{ alert.peak_value }} {{ alert.metric_info.unit }}</span>
+              <div class="small text-body-secondary">{{ alert.created_at|timesince }} ago</div>
+            </div>
+            <div class="text-end d-flex flex-column align-items-end gap-1">
+              {% include "partials/status_badge.html" with status=alert.severity label=alert.get_severity_display %}
+              {% include "partials/status_badge.html" with status=alert.status label=alert.get_status_display %}
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-bell-slash" title="No alerts yet" text="Alerts appear here when a reading crosses a limit." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{{ dashboard_data|json_script:"dashboard-data" }}
+{% endblock %}
+
+{% block scripts %}
+{% include "partials/chartjs.html" %}
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

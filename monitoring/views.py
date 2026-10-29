@@ -7,7 +7,7 @@ from core.permissions import admin_required
 from equipment import services as equipment_services
 from equipment.models import Equipment
 
-from equipment.metrics import METRICS, classify, tone_for
+from equipment.metrics import METRICS
 
 from .forms import SimulatorSettingsForm
 from .models import SimulatorSettings
@@ -19,15 +19,10 @@ def live_monitoring(request):
     """One card per active machine plus a live chart for the selected machine and metric."""
     machines = list(Equipment.objects.active())
     latest = latest_readings(machines)
-    cards = []
-    for equipment in machines:
-        reading = latest.get(equipment.pk)
-        metrics = []
-        for metric, warn, crit in equipment.threshold_rows():
-            value = reading.value_for(metric) if reading else None
-            status = classify(value, warn, crit) if value is not None else None
-            metrics.append({"metric": metric, "value": value, "warn": warn, "crit": crit, "tone": tone_for(status)})
-        cards.append({"equipment": equipment, "reading": reading, "metrics": metrics})
+    cards = [
+        {"equipment": equipment, "metrics": equipment_services.metric_rows(equipment, latest.get(equipment.pk))}
+        for equipment in machines
+    ]
 
     codes = [m.equipment_code for m in machines]
     selected = request.GET.get("eq") if request.GET.get("eq") in codes else (codes[0] if codes else None)

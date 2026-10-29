@@ -20,3 +20,9 @@ One line per decision that the build spec did not cover. Newest at the bottom.
 - **Simulator "last reading received"** comes from `SimulatorSettings.last_ingest_at`, updated by the ingest view (backfilled seed readings do not count).
 - **Seed backfill** is generated in NORMAL mode and written directly (no alerts); one resolved historical alert is added for EQ-003 so alert history is not empty. `--reset` deletes all equipment (cascading readings/alerts) and the demo users.
 - **Alert on_delete**: readings and alerts cascade with equipment (equipment is never hard-deleted in the UI; only superusers can delete in /admin/).
+- **Live updates on every page**: `static/js/live.js` is loaded globally, so the top-bar dot is real everywhere and new-alert toasts appear on any page. Pages opt in to live DOM updates with data attributes (`.js-live-status`, `[data-live-value]`, `[data-live-time]`, `[data-kpi]`).
+- **Polling fallback**: when the socket closes, live.js polls `/api/v1/equipment/status/` + `/api/v1/dashboard/summary/` (+ page chart pollers) every 10 s and retries the socket with backoff (2 s -> 30 s). `?transport=poll` forces polling for demos; `EquipWatch.live.close()` drops the socket from DevTools.
+- **WebSocket summary is user-agnostic**: broadcast KPI counts are equipment health + open alerts only. Per-user counts (inspections, tasks) come from page load and the summary API.
+- **Offline in the browser**: a machine badge turns OFFLINE client-side when its last reading is older than `OFFLINE_AFTER_SECONDS`; KPI counts are refreshed from the API every 30 s while live.
+- **Charts use a category x-axis** (formatted times) so no Chart.js date adapter is needed; gaps in data are not drawn to scale.
+- **Measurements are rounded to 2 decimals** in `process_reading()` so stored, broadcast and API values match.

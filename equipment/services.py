@@ -5,7 +5,7 @@ import qrcode
 from qrcode.constants import ERROR_CORRECT_M
 from qrcode.image.pil import PilImage
 
-from .metrics import CRITICAL, METRICS, WARNING, classify, worst
+from .metrics import CRITICAL, METRICS, WARNING, classify, tone_for, worst
 from .models import Equipment
 
 
@@ -36,6 +36,19 @@ def metric_statuses(equipment, reading):
         metric.key: classify(reading.value_for(metric), *equipment.thresholds(metric))
         for metric in METRICS
     }
+
+
+def metric_rows(equipment, reading):
+    """
+    One dict per metric for templates: value, limits and a colour tone.
+    `reading` may be None (no data yet) -> value None, tone "offline".
+    """
+    rows = []
+    for metric, warn, crit in equipment.threshold_rows():
+        value = reading.value_for(metric) if reading else None
+        status = classify(value, warn, crit) if value is not None else None
+        rows.append({"metric": metric, "value": value, "warn": warn, "crit": crit, "tone": tone_for(status)})
+    return rows
 
 
 def recompute_health(equipment):

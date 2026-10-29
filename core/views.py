@@ -4,6 +4,7 @@ from django.template import loader
 
 from accounts.models import Role
 from equipment.models import Equipment
+from equipment.services import metric_rows
 from monitoring.models import Alert
 from monitoring.services import latest_readings
 
@@ -14,10 +15,14 @@ from .services import dashboard_summary
 def dashboard(request):
     machines = list(Equipment.objects.active())
     latest = latest_readings(machines)
+    summary = dashboard_summary(request.user)
     context = {
         "page_title": "Overview",
-        "summary": dashboard_summary(request.user),
-        "equipment_rows": [{"equipment": eq, "reading": latest.get(eq.pk)} for eq in machines],
+        "summary": summary,
+        "dashboard_data": {"summary": summary},
+        "equipment_rows": [
+            {"equipment": eq, "metrics": metric_rows(eq, latest.get(eq.pk))} for eq in machines
+        ],
         "recent_alerts": Alert.objects.select_related("equipment")[:6],
         "trend_machines": machines,
     }

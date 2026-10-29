@@ -4,6 +4,9 @@ from decimal import Decimal
 from io import StringIO
 from unittest import mock
 
+from channels.db import database_sync_to_async
+from channels.testing import WebsocketCommunicator
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -16,6 +19,7 @@ from equipment.metrics import PRESSURE, TEMPERATURE
 from equipment.models import Equipment
 
 from . import services
+from .consumers import DashboardConsumer
 from .models import Alert, SensorReading, SimulatorSettings
 from .simulation import SensorSimulator, primary_metric
 
@@ -362,3 +366,124 @@ class SimulatorSettingsPageTests(TestCase):
         self.client.force_login(self.admin)
         self.client.post(reverse("monitoring:simulator_settings"), {"interval_seconds": 1, "noise_pct": "1"})
         self.assertEqual(SimulatorSettings.load().interval_seconds, 5)
+
+
+class DashboardConsumerTests(TestCase):
+    """WebSocket feed: anonymous users are refused; logged-in users get messages after process_reading()."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_inspector()
+        cls.machine = make_machine()
+
+    def communicator(self, user):
+        communicator = WebsocketCommunicator(DashboardConsumer.as_asgi(), "/ws/dashboard/")
+        communicator.scope["user"] = user
+        return communicator
+
+    async def test_anonymous_connection_rejected(self):
+        connected, code = await self.communicator(AnonymousUser()).connect()
+        self.assertFalse(connected)
+        self.assertEqual(code, 4401)
+
+    def send_breach(self):
+        # TestCase never commits, so run the on_commit broadcast callbacks explicitly.
+        with self.captureOnCommitCallbacks(execute=True):
+            send(self.machine, temperature=90)
+
+    async def test_authenticated_client_receives_reading_and_alert(self):
+        communicator = self.communicator(self.user)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+
+        await database_sync_to_async(self.send_breach)()
+
+        reading = await communicator.receive_json_from(timeout=3)
+        self.assertEqual(reading["type"], "reading")
+        self.assertEqual(reading["equipment"]["code"], "EQ-001")
+        self.assertEqual(reading["equipment"]["status"], "CRITICAL")
+        self.assertEqual(reading["values"]["temperature"], "90.00")
+        self.assertEqual(reading["source"], "SIMULATED")
+        self.assertEqual(reading["summary"]["active_alerts"], 1)
+
+        alert = await communicator.receive_json_from(timeout=3)
+        self.assertEqual(alert["type"], "alert")
+        self.assertEqual(alert["event"], "created")
+        self.assertEqual(alert["alert"]["severity"], "CRITICAL")
+        self.assertEqual(alert["alert"]["metric"], "temperature")
+        # No user data in the payload.
+        self.assertNotIn(self.user.username, json.dumps([reading, alert]))
+        await communicator.disconnect()
+
+
+class ReadApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_inspector()
+        cls.machine = make_machine()
+        make_machine("EQ-009", is_active=False)
+
+    def setUp(self):
+        send(self.machine, temperature=72)
+        send(self.machine, temperature=73)
+
+    def test_requires_login(self):
+        for url in ["/api/v1/dashboard/summary/", "/api/v1/equipment/status/", "/api/v1/equipment/EQ-001/readings/"]:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 403)
+                self.assertIn("error", response.json())
+
+    def test_dashboard_summary(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/v1/dashboard/summary/").json()
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(data["warning"], 1)
+        self.assertEqual(data["active_alerts"], 1)
+
+    def test_equipment_status_lists_active_machines_with_latest_values(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/v1/equipment/status/").json()
+        self.assertEqual(data["count"], 1)  # paginated; inactive EQ-009 excluded
+        item = data["results"][0]
+        self.assertEqual(item["code"], "EQ-001")
+        self.assertEqual(item["status"], "WARNING")
+        self.assertEqual(item["values"]["temperature"], "73.00")
+
+    def test_readings_oldest_first_with_thresholds_and_limit(self):
+        self.client.force_login(self.user)
+        data = self.client.get("/api/v1/equipment/EQ-001/readings/?limit=1").json()
+        self.assertEqual(len(data["readings"]), 1)
+        self.assertEqual(data["readings"][0]["temperature"], "73.00")
+        self.assertEqual(data["thresholds"]["temperature"]["warn"], "70.00")
+        data = self.client.get("/api/v1/equipment/EQ-001/readings/").json()
+        self.assertEqual([r["temperature"] for r in data["readings"]], ["72.00", "73.00"])
+
+    def test_unknown_equipment_is_json_404(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/api/v1/equipment/EQ-404/readings/")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.json())
+
+
+class LivePagesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_inspector()
+        cls.machine = make_machine()
+
+    def setUp(self):
+        send(self.machine, temperature=72)
+        self.client.force_login(self.user)
+
+    def test_dashboard_shows_kpis_and_live_hooks(self):
+        response = self.client.get(reverse("core:dashboard"))
+        self.assertContains(response, 'data-kpi="warning"')
+        self.assertContains(response, 'class="js-live-status" data-code="EQ-001"')
+        self.assertContains(response, 'id="dashboard-data"')
+
+    def test_live_monitoring_page(self):
+        response = self.client.get(reverse("monitoring:live"), {"eq": "EQ-001", "metric": "pressure"})
+        self.assertContains(response, 'data-selected="EQ-001"')
+        self.assertContains(response, 'data-metric="pressure"')
+        self.assertContains(response, "72.00")

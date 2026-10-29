@@ -10,7 +10,6 @@ from core.permissions import RoleRequiredMixin, admin_required, is_admin
 
 from . import services
 from .forms import EquipmentCreateForm, EquipmentDetailsForm, EquipmentFilterForm, ThresholdForm
-from .metrics import tone_for
 from .models import Equipment
 
 
@@ -34,21 +33,10 @@ def equipment_detail(request, code):
     equipment = get_object_or_404(Equipment, equipment_code=code)
     readings = equipment.readings.order_by("-recorded_at", "-id")
     latest = readings.first()
-    statuses = services.metric_statuses(equipment, latest)
-    metric_cards = [
-        {
-            "metric": metric,
-            "value": latest.value_for(metric) if latest else None,
-            "warn": warn,
-            "crit": crit,
-            "tone": tone_for(statuses.get(metric.key)),
-        }
-        for metric, warn, crit in equipment.threshold_rows()
-    ]
     context = {
         "equipment": equipment,
         "latest_reading": latest,
-        "metric_cards": metric_cards,
+        "metric_cards": services.metric_rows(equipment, latest),
         "recent_readings": readings[:20],
         "page_title": equipment.equipment_code,
     }

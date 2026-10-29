@@ -4,7 +4,7 @@
   <div>
     <div class="d-flex flex-wrap align-items-center gap-2">
       <h2>{{ equipment.equipment_code }} · {{ equipment.name }}</h2>
-      <span id="equipmentStatus">{% include "partials/status_badge.html" with status=equipment.display_status label=equipment.display_status_label %}</span>
+      <span class="js-live-status" data-code="{{ equipment.equipment_code }}"{% if equipment.is_active %} data-last-reading="{{ equipment.last_reading_at.isoformat|default:'' }}"{% endif %}>{% include "partials/status_badge.html" with status=equipment.display_status label=equipment.display_status_label %}</span>
     </div>
     <p class="subtitle">{{ equipment.get_equipment_type_display }} · {{ equipment.location }}</p>
   </div>
@@ -36,14 +36,14 @@
     <div class="card" id="currentReadings" data-code="{{ equipment.equipment_code }}">
       <div class="card-header">
         Current readings
-        <span class="small text-body-secondary fw-normal">{% if latest_reading %}{{ latest_reading.get_source_display }} · <span data-field="recorded_at" data-time="{{ latest_reading.recorded_at.isoformat }}">{{ latest_reading.recorded_at|date:"H:i:s" }}</span>{% else %}No readings yet{% endif %}</span>
+        <span class="small text-body-secondary fw-normal">Simulated · <span data-live-time data-code="{{ equipment.equipment_code }}"{% if latest_reading %} data-time="{{ latest_reading.recorded_at.isoformat }}"{% endif %}>{% if latest_reading %}{{ latest_reading.recorded_at|timesince }} ago{% else %}no readings yet{% endif %}</span></span>
       </div>
       <div class="card-body">
         <div class="metric-grid">
           {% for card in metric_cards %}
-          <div class="metric-tile tone-{{ card.tone }}" data-metric="{{ card.metric.key }}" data-warn="{{ card.warn }}" data-crit="{{ card.crit }}">
+          <div class="metric-tile tone-{{ card.tone }}" data-tone-target>
             <div class="metric-label">{{ card.metric.label }}</div>
-            <div class="metric-value"><span data-value>{% if card.value is not None %}{{ card.value }}{% else %}—{% endif %}</span> <small>{{ card.metric.unit }}</small></div>
+            <div class="metric-value"><span data-live-value data-code="{{ equipment.equipment_code }}" data-metric="{{ card.metric.key }}" data-warn="{{ card.warn }}" data-crit="{{ card.crit }}">{% if card.value is not None %}{{ card.value }}{% else %}—{% endif %}</span> <small>{{ card.metric.unit }}</small></div>
             <div class="metric-limits">warn {{ card.warn }} · crit {{ card.crit }}</div>
           </div>
           {% endfor %}
