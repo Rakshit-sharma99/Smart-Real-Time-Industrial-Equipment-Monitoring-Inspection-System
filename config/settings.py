@@ -1,5 +1,5 @@
 """
-Django settings for EquipWatch.
+Django settings for RestaurantSpy.
 
 Machine-specific values (secrets, hosts, tokens) are read from a .env file in
 the project root. See .env.example for the full list.
@@ -63,10 +63,11 @@ INSTALLED_APPS = [
     "channels",
     "core",
     "accounts",
-    "equipment",
-    "monitoring",
+    "tables",
     "inspections",
-    "maintenance",
+    "tasks",
+    "reservations",
+    "notifications",
     "reports",
 ]
 
@@ -109,7 +110,8 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        # Own file name, so the EquipWatch version on the main branch keeps its db.sqlite3.
+        "NAME": BASE_DIR / os.getenv("DATABASE_FILE", "restaurantspy.sqlite3"),
         "OPTIONS": {
             "timeout": 20,
             "init_command": "PRAGMA journal_mode=WAL;",
@@ -121,10 +123,15 @@ DATABASES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Channels (WebSockets) --------------------------------------------------------
-# In-memory layer: works because all broadcasts happen inside the web server
-# process (the simulator posts readings over HTTP). Production would use Redis.
+# In-memory layer: works because every change (pages, APIs, the camera
+# detection endpoint) happens inside the one web server process. Production
+# with several processes would use the Redis channel layer instead.
 
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
+# Process-local cache: used for login rate limiting, API throttling and the
+# once-a-minute overdue-task check.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 # --- Auth & sessions ----------------------------------------------------------------
 
@@ -136,7 +143,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "core:dashboard"
+LOGIN_REDIRECT_URL = "core:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
 SESSION_COOKIE_HTTPONLY = True
@@ -159,7 +166,7 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Uploaded inspection photos live here. There is deliberately no public
+# Uploaded table inspection photos live here. There is deliberately no public
 # MEDIA_URL route: photos are served by a permission-checked view.
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
@@ -175,6 +182,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
     "EXCEPTION_HANDLER": "core.api.json_exception_handler",
+    # Per-endpoint limits (views opt in with throttle_scope).
+    "DEFAULT_THROTTLE_RATES": {"detections": "120/min", "reservations": "30/min"},
 }
 
 # --- Logging ------------------------------------------------------------------------------
@@ -215,21 +224,26 @@ if TESTING:
     LOGGING["root"]["level"] = "ERROR"
     LOGGING["loggers"]["django"]["level"] = "ERROR"
 
-# --- EquipWatch settings -------------------------------------------------------------------
+# --- RestaurantSpy settings ----------------------------------------------------------------
 
-APP_NAME = os.getenv("APP_NAME", "EquipWatch")
+APP_NAME = os.getenv("APP_NAME", "RestaurantSpy")
 COLLEGE_NAME = os.getenv("COLLEGE_NAME", "")
 TEAM_NAMES = os.getenv("TEAM_NAMES", "")
 
+# Base URL encoded into table QR codes ({SITE_BASE_URL}/t/<public_id>/).
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-SIMULATOR_TOKEN = os.getenv("SIMULATOR_TOKEN", "").strip()
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "").strip()
 
-# A machine with no reading for this many seconds is shown as OFFLINE.
-OFFLINE_AFTER_SECONDS = env_int("OFFLINE_AFTER_SECONDS", 30)
+# Shared secret for the camera / computer-vision detection API (POST /api/v1/detections/).
+# No vision model ships with this project; the endpoint is the integration point.
+DETECTION_API_TOKEN = os.getenv("DETECTION_API_TOKEN", "").strip()
+# Camera detections below this confidence are stored but do not change the table.
+DETECTION_MIN_CONFIDENCE = float(os.getenv("DETECTION_MIN_CONFIDENCE", "0.6"))
 
-# Inspectors may start an unassigned ("ad-hoc") inspection from an equipment page.
-ALLOW_ADHOC_INSPECTIONS = True
+# Login protection: this many failed attempts for one username from one IP
+# address blocks further attempts for LOGIN_LOCKOUT_SECONDS.
+LOGIN_MAX_FAILED_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60
 
 # Inspection photo limits.
 PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
