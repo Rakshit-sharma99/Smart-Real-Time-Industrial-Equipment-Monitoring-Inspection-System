@@ -1,0 +1,11 @@
+{% load ui %}{# One table on the floor plan. Expects `t` (from tables.services.with_status). #}
+<a class="table-tile tone-{{ t.status|status_tone }}" href="{{ t.get_absolute_url }}" aria-label="{{ t.label }}, {{ t.capacity }} seats, {{ t.status_label }}">
+  <span class="tile-head"><span class="tile-number">{{ t.label }}</span><span class="tile-seats"><i class="bi bi-person" aria-hidden="true"></i>{{ t.capacity }}</span></span>
+  <span class="tile-status">{{ t.status_label }}</span>
+  <span class="tile-facts">
+    <span title="{% if t.is_occupied %}Customers seated{% else %}No customers{% endif %}"><i class="bi {% if t.is_occupied %}bi-people-fill{% else %}bi-people{% endif %}" aria-hidden="true"></i> {% if t.is_occupied %}Seated{% else %}Empty{% endif %}</span>
+    <span title="{{ t.get_cleanliness_display }}"><i class="bi {% if t.cleanliness == 'CLEAN' %}bi-stars{% elif t.cleanliness == 'NEEDS_CLEARING' %}bi-cup-straw{% else %}bi-droplet{% endif %}" aria-hidden="true"></i> {% if t.cleanliness == 'CLEAN' %}Clean{% elif t.cleanliness == 'NEEDS_CLEARING' %}Dishes{% else %}Dirty{% endif %}</span>
+  </span>
+  {% if t.next_booking_at %}<span class="tile-booking"><i class="bi bi-bookmark" aria-hidden="true"></i> {{ t.next_booking_at|date:"H:i" }} · {{ t.next_booking_party }} guests</span>{% endif %}
+  <span class="tile-meta">{% if t.assigned_waiter %}{{ t.assigned_waiter.get_short_name|default:t.assigned_waiter.username }} · {% endif %}{{ t.status_updated_at|timesince }} ago</span>
+</a>

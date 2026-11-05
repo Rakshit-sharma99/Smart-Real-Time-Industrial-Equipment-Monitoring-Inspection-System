@@ -79,6 +79,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Every page needs a login unless the view is marked @login_not_required.
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
+    # request.role and request.restaurant for every view.
+    "core.middleware.RestaurantMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

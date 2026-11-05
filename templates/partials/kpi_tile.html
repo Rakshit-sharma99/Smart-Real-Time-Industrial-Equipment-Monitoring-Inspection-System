@@ -1,0 +1,5 @@
+{# Usage: include "partials/kpi_tile.html" with label="Ready" value=5 tone="ready" icon="bi-check-circle" href=url #}
+<{% if href %}a href="{{ href }}"{% else %}div{% endif %} class="kpi-tile tone-{{ tone|default:'neutral' }}">
+  <span class="kpi-label">{% if icon %}<i class="bi {{ icon }}" aria-hidden="true"></i>{% endif %}{{ label }}</span>
+  <span class="kpi-value">{{ value }}</span>
+</{% if href %}a{% else %}div{% endif %}>

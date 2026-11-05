@@ -1,5 +1,7 @@
 from django import forms
 
+from tables.models import Restaurant, RestaurantSection
+
 
 class BootstrapFormMixin:
     """Adds Bootstrap 5 CSS classes to every widget so templates stay simple."""
@@ -24,3 +26,33 @@ class BootstrapFormMixin:
             if name in self.fields:
                 widget = self.fields[name].widget
                 widget.attrs["class"] = f"{widget.attrs.get('class', '')} is-invalid".strip()
+
+
+class RestaurantForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Restaurant
+        fields = ["name", "address", "opens_at", "closes_at", "reservation_minutes",
+                  "reservation_hold_minutes", "cleaning_deadline_minutes"]
+        widgets = {
+            "opens_at": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            "closes_at": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+        }
+
+
+class SectionForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = RestaurantSection
+        fields = ["name", "floor", "sort_order"]
+
+    def __init__(self, *args, restaurant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.restaurant = restaurant
+
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+        clash = RestaurantSection.objects.filter(restaurant=self.restaurant, name__iexact=name)
+        if self.instance.pk:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise forms.ValidationError("A section with this name already exists.")
+        return name
