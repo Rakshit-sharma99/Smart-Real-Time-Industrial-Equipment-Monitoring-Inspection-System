@@ -11,7 +11,7 @@ from datetime import datetime, time, timedelta
 from itertools import groupby
 from statistics import mean
 
-from django.db.models import Count, Sum
+from django.db.models import Count
 from django.utils import timezone
 
 from inspections.models import TableInspection
@@ -190,5 +190,3 @@ def weekly_totals(report):
         "cancelled": sum(d["cancelled"] for d in report.daily),
     }
 
-
-__all__ = ["operations_report", "weekly_totals", "MEASURED", "ESTIMATE", "MAX_DAYS", "Sum"]

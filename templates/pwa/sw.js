@@ -1,4 +1,4 @@
-/* EquipWatch service worker (served at /sw.js by core/pwa.py).
+/* RestaurantSpy service worker (served at /sw.js by core/pwa.py).
  * Caches only /static/ files (cache-first) and an offline page.
  * Pages and /api/ requests are network-only: logged-in content is never cached. */
 const CACHE_NAME = "{{ cache_name }}";
