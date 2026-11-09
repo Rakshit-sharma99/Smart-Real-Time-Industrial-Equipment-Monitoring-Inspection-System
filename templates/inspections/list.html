@@ -19,7 +19,7 @@
 {% if inspections %}
 <div class="table-wrap"><div class="table-responsive">
   <table class="table table-hover align-middle">
-    <thead><tr><th scope="col">Inspection</th><th scope="col">Table</th><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
+    <thead><tr><th scope="col">Check</th><th scope="col">Table</th><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
     <tbody>
       {% for i in inspections %}
       <tr>
@@ -37,6 +37,6 @@
 </div></div>
 {% include "partials/pagination.html" %}
 {% else %}
-  {% include "partials/empty_state.html" with icon="bi-clipboard2" title="No inspections found" text="Scan a table's QR code to record one." %}
+  {% include "partials/empty_state.html" with icon="bi-clipboard2" title="No table checks found" text="Scan a table's QR code to record one." %}
 {% endif %}
 {% endblock %}

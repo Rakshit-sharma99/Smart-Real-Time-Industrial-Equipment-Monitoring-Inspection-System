@@ -7,9 +7,10 @@
     <p class="subtitle">{{ table.section.name }}{% if table.section.floor %} · {{ table.section.floor }}{% endif %} · {{ table.capacity }} seats{% if not table.is_active %} · <strong>deactivated</strong>{% endif %}</p>
   </div>
   <div class="page-actions">
-    {% if can_inspect %}<a class="btn btn-primary" href="{% url 'inspections:inspect' table.pk %}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Inspect</a>{% endif %}
+    {% if can_inspect %}<a class="btn btn-primary" href="{% url 'inspections:inspect' table.pk %}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Check table</a>{% endif %}
     {% if is_manager_user %}<a class="btn btn-outline-secondary" href="{% url 'tasks:create' %}?table={{ table.pk }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Waiter task</a>{% endif %}
     {% if is_manager_user or is_receptionist_user %}<a class="btn btn-outline-secondary" href="{% url 'reservations:desk' %}?guests={{ table.capacity }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Booking</a>{% endif %}
+    {% if is_manager_user and table.zones.exists %}<a class="btn btn-outline-secondary" href="{% url 'cctv:console_camera' table.zones.first.camera_id %}"><i class="bi bi-camera-video" aria-hidden="true"></i> Live CCTV</a>{% endif %}
     {% if is_manager_user %}<a class="btn btn-outline-secondary" href="{% url 'reports:table_pdf' table.pk %}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> History PDF</a>{% endif %}
   </div>
 </div>
@@ -85,7 +86,7 @@
   <div class="col-lg-7">
     <div class="card">
       <ul class="nav nav-underline nav-tabs-card" role="tablist">
-        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-inspections" type="button" role="tab" aria-selected="true">Inspections</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-inspections" type="button" role="tab" aria-selected="true">Table checks</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab" aria-selected="false">Audit log</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button" role="tab" aria-selected="false">Tasks</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-bookings" type="button" role="tab" aria-selected="false">Bookings</button></li>
@@ -102,7 +103,7 @@
                 <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}</td></tr>
             {% endfor %}</tbody>
           </table></div></div>
-          {% else %}{% include "partials/empty_state.html" with icon="bi-clipboard2" title="No inspections yet" %}{% endif %}
+          {% else %}{% include "partials/empty_state.html" with icon="bi-clipboard2" title="No table checks yet" %}{% endif %}
         </div>
         <div class="tab-pane fade" id="tab-history" role="tabpanel">
           {% if history %}

@@ -94,16 +94,15 @@ class InspectionTests(BaseCase):
         self.assertIn(Notification.Kind.CLEANING_NEEDED, kinds)
 
     def test_camera_reports_dishes_but_never_makes_table_ready(self):
-        inspections.record_detection(self.table, customers_present=False, plates_present=True,
-                                     glasses_present=False, leftovers_present=False, confidence=0.9, device_id="cam-1")
+        inspections.record_detection(self.table, customers_present=False, dishes_present=True,
+                                     confidence=0.9, device_id="cam-1")
         self.assertEqual(self.status(), S.VACANT_NEEDS_CLEARING)
-        inspections.record_detection(self.table, customers_present=False, plates_present=False,
-                                     glasses_present=False, leftovers_present=False, confidence=0.9, device_id="cam-1")
+        inspections.record_detection(self.table, customers_present=False, dishes_present=False,
+                                     confidence=0.9, device_id="cam-1")
         self.assertEqual(self.status(), S.CLEANING_REQUIRED)  # dishes gone, still not Ready
 
     def test_low_confidence_detection_is_stored_not_applied(self):
-        detection = inspections.record_detection(self.table, customers_present=True, plates_present=True,
-                                                 glasses_present=True, leftovers_present=True, confidence=0.2)
+        detection = inspections.record_detection(self.table, customers_present=True, dishes_present=True, confidence=0.2)
         self.assertFalse(detection.applied)
         self.assertEqual(self.status(), S.READY)
 

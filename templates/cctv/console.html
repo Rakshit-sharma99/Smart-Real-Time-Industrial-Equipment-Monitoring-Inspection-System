@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% block content %}
+{% if not camera %}
+  {% url 'cctv:camera_create' as create_url %}
+  {% include "partials/empty_state.html" with icon="bi-camera-video" title="No cameras configured" text="Add a camera (RTSP/IP stream, webcam, or a demo video file), then run the video worker: python manage.py run_cameras" action_url=create_url action_label="Add a camera" %}
+{% else %}
+<div class="cctv-page" id="cctvConsole" data-state-url="{% url 'cctv:state' camera.pk %}" data-frame-url="{% url 'cctv:frame' camera.pk %}">
+  <div class="cctv-main">
+    <div class="cctv-toolbar">
+      <div class="cctv-cameras" role="tablist" aria-label="Cameras">
+        {% for c in cameras %}<a class="cctv-cam{% if c.pk == camera.pk %} active{% endif %}" href="{% url 'cctv:console_camera' c.pk %}" role="tab" aria-selected="{% if c.pk == camera.pk %}true{% else %}false{% endif %}"><span class="cam-dot st-{{ c.live_status|lower }}"></span>{{ c.name }}</a>{% endfor %}
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="cctv-status st-{{ state.status|lower }}" id="cctvStatus">{{ state.status_label }}</span>
+        <button class="btn btn-sm btn-outline-secondary" type="button" id="cctvPause" aria-pressed="false"><i class="bi bi-pause-fill" aria-hidden="true"></i> Pause</button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" id="cctvFullscreen"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i></button>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'cctv:zones' camera.pk %}"><i class="bi bi-bounding-box" aria-hidden="true"></i> Table zones</a>
+      </div>
+    </div>
+
+    <div class="cctv-stage" id="cctvStage" style="aspect-ratio: {{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
+      <img id="cctvFrame" alt="Latest frame from {{ camera.name }}" class="{% if not state.has_frame %}d-none{% endif %}" src="{% if state.has_frame %}{% url 'cctv:frame' camera.pk %}?t=0{% endif %}">
+      <svg id="cctvOverlay" class="cctv-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="cctv-labels" id="cctvLabels"></div>
+      <div class="cctv-message{% if state.has_frame %} d-none{% endif %}" id="cctvMessage">
+        <i class="bi bi-camera-video-off" aria-hidden="true"></i>
+        <span id="cctvMessageText">{% if state.status == "UNKNOWN" %}Waiting for the first frame. Start the worker: <code>python manage.py run_cameras</code>{% else %}No recent frame from this camera.{% endif %}</span>
+      </div>
+      <div class="cctv-badges">
+        {% if camera.is_demo %}<span class="cctv-badge demo">DEMO VIDEO</span>{% else %}<span class="cctv-badge live" id="cctvLiveBadge">LIVE</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="cctv-meta">
+      <span><strong>{{ camera.name }}</strong> · {{ camera.masked_source }}</span>
+      <span>Last frame: <span id="cctvLastFrame">{% if state.last_frame_at %}just now{% else %}never{% endif %}</span></span>
+      <span id="cctvDetector">{% if camera.detector_name %}Detector: {{ camera.detector_name }} · dishes {% if camera.detects_dishes %}detectable{% else %}<em>not detectable</em>{% endif %}{% else %}AI detection: not running{% endif %}</span>
+    </div>
+    <p class="small text-body-secondary mb-0">The camera decides occupancy{% if camera.detects_dishes %} and whether dishes remain{% endif %}; a table is marked <strong>Ready</strong> only after a waiter or manager confirms it. Changes apply after {{ camera.frames_to_confirm }} consecutive matching samples ({{ camera.detection_interval_seconds }} s apart).</p>
+  </div>
+
+  <aside class="cctv-side">
+    <h3 class="h6 text-body-secondary text-uppercase">Tables in view</h3>
+    <div data-live-fragment="{% url 'cctv:console_camera' camera.pk %}?fragment=1" data-live-topics="tables cameras" id="cctvTables">
+      {% include "cctv/_zone_tables.html" %}
+    </div>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if camera %}<script src="{% static 'js/cctv.js' %}"></script>{% endif %}{% endblock %}

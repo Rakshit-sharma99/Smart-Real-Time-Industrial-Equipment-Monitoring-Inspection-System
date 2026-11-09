@@ -1,6 +1,4 @@
 {% load ui %}{# Manager task table + waiter progress. Rendered inside a live fragment. #}
-<div class="row g-3">
-  <div class="col-xl-8">
     {% if tasks %}
     <div class="table-wrap"><div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -24,15 +22,3 @@
     {% else %}
       {% include "partials/empty_state.html" with icon="bi-list-check" title="No tasks match" %}
     {% endif %}
-  </div>
-  <div class="col-xl-4">
-    <div class="card">
-      <div class="card-header">Waiter progress</div>
-      <ul class="list-group list-group-flush">
-        {% for w in waiter_progress %}
-        <li class="list-group-item d-flex justify-content-between"><span>{{ w|person }}</span><span class="small text-body-secondary">{{ w.active }} active · {{ w.done_today }} done today</span></li>
-        {% empty %}<li class="list-group-item text-body-secondary">No waiters yet.</li>{% endfor %}
-      </ul>
-    </div>
-  </div>
-</div>

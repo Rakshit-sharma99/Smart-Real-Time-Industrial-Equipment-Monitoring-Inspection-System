@@ -6,8 +6,8 @@ from django.template import loader
 
 from accounts.models import Role
 from tables import services as table_services
+from tables.forms import waiters_of
 from tables.models import RestaurantSection
-from tables.views import floor_context
 
 from . import services
 from .forms import RestaurantForm, SectionForm
@@ -27,28 +27,33 @@ def home(request):
 # --- Manager dashboard -----------------------------------------------------------------
 
 
-def kpi_context(request):
-    tables = table_services.with_status(table_services.live_tables(request.restaurant))
-    return {"kpis": services.manager_kpis(request.restaurant, tables)}
+def overview_context(request):
+    """Stats, attention list and floor - the live part of the Overview."""
+    tables = table_services.with_status(table_services.live_tables(request.restaurant).filter(is_active=True))
+    return {
+        "stats": services.overview_stats(tables),
+        "attention": services.attention_items(request.restaurant, tables),
+        "floor_sections": services.floor_by_section(tables),
+        "waiters": waiters_of(request.restaurant),
+    }
 
 
 @manager_required
 def manager_dashboard(request):
     services.run_periodic_checks(request.restaurant)
-    context = {"page_title": "Manager dashboard", **kpi_context(request), **services.board_panels(request.restaurant)}
-    context.update(floor_context(request))
+    context = {"page_title": "Overview", **overview_context(request), **services.side_panels(request.restaurant)}
     return render(request, "core/manager_dashboard.html", context)
 
 
 @manager_required
-def fragment_kpis(request):
+def fragment_overview(request):
     services.run_periodic_checks(request.restaurant)
-    return render(request, "core/_kpis.html", kpi_context(request))
+    return render(request, "core/_overview_live.html", overview_context(request))
 
 
 @manager_required
 def fragment_panels(request):
-    return render(request, "core/_panels.html", services.board_panels(request.restaurant))
+    return render(request, "core/_panels.html", services.side_panels(request.restaurant))
 
 
 # --- Settings -------------------------------------------------------------------------------

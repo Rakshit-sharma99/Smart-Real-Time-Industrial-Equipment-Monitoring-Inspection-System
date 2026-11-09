@@ -18,6 +18,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
+from cctv.models import Camera, TableZone
 from inspections import services as inspections
 from inspections.models import TableInspection
 from notifications.models import Notification
@@ -68,12 +69,14 @@ class Command(BaseCommand):
             self.restaurant = self.seed_restaurant()
             self.users = self.seed_users()
             self.tables = self.seed_tables()
+            self.seed_camera()
             if not Reservation.objects.filter(restaurant=self.restaurant).exists():
                 self.seed_history()
                 self.seed_today()
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
         self.stdout.write(f"  Restaurant: {self.restaurant.name} ({len(self.tables)} tables)")
         self.stdout.write(f"  Users: {', '.join(u[0] for u in DEMO_USERS)} (password: DEMO_PASSWORD in .env)")
+        self.stdout.write("  Camera: 'Main hall' = webcam 0 with zones for T1-T4. Start it with: python manage.py run_cameras")
         self.stdout.write(f"  Reservations: {Reservation.objects.filter(restaurant=self.restaurant).count()}, "
                           f"tasks: {WaiterTask.objects.filter(restaurant=self.restaurant).count()}, "
                           f"inspections: {TableInspection.objects.filter(table__restaurant=self.restaurant).count()}")
@@ -90,6 +93,7 @@ class Command(BaseCommand):
             TableInspection.objects.filter(table__restaurant=restaurant).delete()
             WaiterTask.objects.filter(restaurant=restaurant).delete()
             Reservation.objects.filter(restaurant=restaurant).delete()
+            Camera.objects.filter(restaurant=restaurant).delete()
             RestaurantTable.objects.filter(restaurant=restaurant).delete()
             User.objects.filter(username__in=[u[0] for u in DEMO_USERS]).delete()
             restaurant.delete()
@@ -210,8 +214,8 @@ class Command(BaseCommand):
         inspections.record_inspection(t[12], t[12].assigned_waiter, remarks="Guests left, two plates and glasses", **LEFT)
         # T5: cleaning required (dishes cleared by a camera detection, not yet cleaned).
         inspections.record_inspection(t[5], t[5].assigned_waiter, **LEFT)
-        inspections.record_detection(t[5], customers_present=False, plates_present=False, glasses_present=False,
-                                     leftovers_present=False, confidence=0.91, device_id="cam-hall-2")
+        inspections.record_detection(t[5], customers_present=False, dishes_present=False, confidence=0.91,
+                                     device_id="cam-hall-2")
         # T7: cleaning in progress by waiter_demo.
         inspections.record_inspection(t[7], t[7].assigned_waiter, **LEFT)
         task = tasks.create_task(table=t[7], task_type=WaiterTask.TaskType.FULL_RESET, priority="HIGH",
@@ -231,3 +235,17 @@ class Command(BaseCommand):
                                     party_size=4, start_at=tomorrow_7pm, created_by=reception)
         # Notifications created while seeding are noise for the demo accounts.
         Notification.objects.filter(restaurant=self.restaurant).delete()
+
+    def seed_camera(self):
+        """One camera on the first webcam (device 0) with a 2x2 grid of zones for T1-T4. Edit the source under Settings."""
+        camera, created = Camera.objects.get_or_create(
+            restaurant=self.restaurant, name="Main hall",
+            defaults={"source_type": Camera.SourceType.DEVICE, "source": "0", "detection_interval_seconds": 2},
+        )
+        if created:
+            grid = {1: [[0.02, 0.02], [0.49, 0.02], [0.49, 0.49], [0.02, 0.49]],
+                    2: [[0.51, 0.02], [0.98, 0.02], [0.98, 0.49], [0.51, 0.49]],
+                    3: [[0.02, 0.51], [0.49, 0.51], [0.49, 0.98], [0.02, 0.98]],
+                    4: [[0.51, 0.51], [0.98, 0.51], [0.98, 0.98], [0.51, 0.98]]}
+            for number, points in grid.items():
+                TableZone.objects.create(camera=camera, table=self.tables[number], points=points)

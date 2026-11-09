@@ -45,6 +45,7 @@ class TableInspection(models.Model):
     device_id = models.CharField(max_length=60, blank=True, help_text="Camera / device that sent a detection.")
     confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
     applied = models.BooleanField(default=True, help_text="False when a low-confidence detection was only recorded.")
+    dishes_checked = models.BooleanField(default=True, help_text="False when the source could not look for dishes.")
 
     customers_present = models.BooleanField("Customers seated")
     plates_present = models.BooleanField("Plates on the table")

@@ -18,6 +18,7 @@ urlpatterns = [
     path("reservations/", include("reservations.urls")),
     path("notifications/", include("notifications.urls")),
     path("reports/", include("reports.urls")),
+    path("cctv/", include("cctv.urls")),
     path("api/v1/", include("config.api_urls")),
     path("", include("core.urls")),
 ]

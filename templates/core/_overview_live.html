@@ -1,0 +1,47 @@
+{% load ui %}{# Stats, attention list and the floor. Rendered inside a live fragment. #}
+{% url 'tables:floor' as floor_url %}
+<div class="overview-strip">
+  <a class="overview-stat" style="--dot: var(--st-occupied)" href="{{ floor_url }}?status=OCCUPIED"><span class="dot"></span><span><span class="n">{{ stats.occupied }}</span><br><span class="l">Occupied</span></span></a>
+  <a class="overview-stat" style="--dot: var(--st-ready)" href="{{ floor_url }}?status=available"><span class="dot"></span><span><span class="n">{{ stats.available }}</span><br><span class="l">Available</span></span></a>
+  <a class="overview-stat" style="--dot: var(--st-clearing)" href="{{ floor_url }}?status=VACANT_NEEDS_CLEARING"><span class="dot"></span><span><span class="n">{{ stats.needs_cleaning }}</span><br><span class="l">Needs cleaning</span></span></a>
+  <a class="overview-stat" style="--dot: var(--st-reserved)" href="{{ floor_url }}?status=RESERVED"><span class="dot"></span><span><span class="n">{{ stats.reserved }}</span><br><span class="l">Reserved</span></span></a>
+</div>
+
+<div class="card">
+  <div class="card-header">Attention required {% if attention %}<span class="badge rounded-pill text-bg-danger">{{ attention|length }}</span>{% endif %}</div>
+  {% for item in attention %}
+  <div class="attention-item">
+    <div><span class="what"><a href="{{ item.table.get_absolute_url }}">{{ item.table.label }}</a> — {{ item.reason }}</span><div class="why">{{ item.since|timesince }} ago</div></div>
+    {% if item.action == "assign" %}
+    <form method="post" action="{% url 'tasks:quick_assign' %}">
+      {% csrf_token %}<input type="hidden" name="table" value="{{ item.table.pk }}">
+      <label class="visually-hidden" for="assign-{{ item.table.pk }}">Waiter for {{ item.table.label }}</label>
+      <select class="form-select form-select-sm" id="assign-{{ item.table.pk }}" name="waiter" required>
+        <option value="">Choose waiter…</option>
+        {% for w in waiters %}<option value="{{ w.pk }}"{% if item.table.assigned_waiter_id == w.pk %} selected{% endif %}>{{ w|person }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-sm btn-primary" type="submit">Assign</button>
+    </form>
+    {% else %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:detail' item.task.pk %}">Open task</a>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="attention-item"><span class="text-body-secondary"><i class="bi bi-check2-circle" aria-hidden="true"></i> Nothing needs your attention right now.</span></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-header">Live floor <a class="btn btn-sm btn-outline-secondary" href="{{ floor_url }}">Full floor view</a></div>
+  <div class="card-body">
+    {% for section, rows in floor_sections %}
+    <section class="floor-section" aria-label="{{ section.name }}">
+      <h3 class="floor-section-title">{{ section.name }} <span class="fw-normal">({{ rows|length }})</span></h3>
+      <div class="floor-grid">{% for t in rows %}{% include "partials/table_tile.html" %}{% endfor %}</div>
+    </section>
+    {% empty %}
+    {% url 'tables:create' as create_url %}
+    {% include "partials/empty_state.html" with icon="bi-grid-3x3-gap" title="No tables yet" action_url=create_url action_label="Add a table" %}
+    {% endfor %}
+  </div>
+</div>

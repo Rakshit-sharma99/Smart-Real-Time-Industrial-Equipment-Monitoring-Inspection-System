@@ -95,13 +95,15 @@ def record_inspection(table, user, *, customers_present, plates_present, glasses
     return inspection
 
 
-def record_detection(table, *, customers_present, plates_present, glasses_present, leftovers_present,
-                     confidence=None, device_id=""):
+def record_detection(table, *, customers_present, dishes_present=None, confidence=None, device_id=""):
     """
     A camera / computer-vision result. Stored always; applied to the table only
-    when its confidence is high enough. It can set occupancy and report dishes,
-    and it can move "dishes on the table" to "needs cleaning" once the dishes
-    are gone - but never to clean.
+    when its confidence is high enough.
+
+    dishes_present: True / False when the detector can see tableware, None when
+    it cannot (then the table's cleanliness is left alone). A camera can set
+    occupancy and report dishes, and it can move "dishes on the table" to
+    "needs cleaning" once the dishes are gone - but never to clean.
     """
     applied = confidence is None or confidence >= settings.DETECTION_MIN_CONFIDENCE
     with transaction.atomic():
@@ -109,16 +111,17 @@ def record_detection(table, *, customers_present, plates_present, glasses_presen
         was_occupied = table.is_occupied
         inspection = TableInspection.objects.create(
             table=table, source=Source.CAMERA, device_id=device_id, confidence=confidence, applied=applied,
-            customers_present=customers_present, plates_present=plates_present, glasses_present=glasses_present,
-            leftovers_present=leftovers_present, table_clean=None, chairs_arranged=None, ready_for_next=False,
+            customers_present=customers_present, plates_present=bool(dishes_present), glasses_present=False,
+            leftovers_present=False, dishes_checked=dishes_present is not None,
+            table_clean=None, chairs_arranged=None, ready_for_next=False,
         )
         if applied:
-            if plates_present or glasses_present or leftovers_present:
+            if dishes_present:
                 cleanliness = Cleanliness.NEEDS_CLEARING
-            elif table.cleanliness == Cleanliness.NEEDS_CLEARING:
+            elif dishes_present is False and table.cleanliness == Cleanliness.NEEDS_CLEARING:
                 cleanliness = Cleanliness.NEEDS_CLEANING  # dishes gone; a person still has to clean and confirm
             else:
-                cleanliness = None  # unchanged
+                cleanliness = None  # unchanged (or not checked)
             note = f"{inspection.reference} from {device_id or 'camera'}"
             if confidence is not None:
                 note += f", confidence {confidence:.2f}"

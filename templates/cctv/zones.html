@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="page-header">
+  <div><h2>Table zones · {{ camera.name }}</h2><p class="subtitle">Draw where each table is in this camera's picture. Detections inside a zone belong to that table.</p></div>
+  <a class="btn btn-outline-secondary" href="{% url 'cctv:console_camera' camera.pk %}">Back to Live CCTV</a>
+</div>
+{% if not has_frame %}
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> No frame from this camera yet. Start <code>python manage.py run_cameras</code> so you can see the picture while drawing. You can still draw on the empty canvas.</div>
+{% endif %}
+<div class="row g-3" id="zoneEditor" data-save-url="{% url 'cctv:save_zones' camera.pk %}" data-frame-url="{% url 'cctv:frame' camera.pk %}" data-has-frame="{{ has_frame|yesno:'1,0' }}">
+  <div class="col-lg-8">
+    <div class="cctv-stage editor" id="zoneStage" style="aspect-ratio: {{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
+      {% if has_frame %}<img id="zoneFrame" src="{% url 'cctv:frame' camera.pk %}" alt="Camera frame">{% endif %}
+      <svg id="zoneOverlay" class="cctv-overlay editing" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="cctv-labels" id="zoneLabels"></div>
+    </div>
+    <p class="small text-body-secondary mt-2 mb-0"><strong>How to draw:</strong> choose a table on the right, then click the corners of the table area on the picture (3 or more points) and press <em>Finish zone</em>. Click a zone's name to remove it. Save when done.</p>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">Zones</div>
+      <div class="card-body">
+        <label class="form-label small" for="zoneTable">Table for the next zone</label>
+        <select class="form-select mb-2" id="zoneTable">
+          {% for t in tables %}<option value="{{ t.pk }}" data-label="{{ t.label }}">{{ t.label }} · {{ t.capacity }} seats · {{ t.section.name }}</option>{% endfor %}
+        </select>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-primary flex-grow-1" type="button" id="zoneFinish" disabled><i class="bi bi-check2" aria-hidden="true"></i> Finish zone</button>
+          <button class="btn btn-outline-secondary" type="button" id="zoneUndo"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+        </div>
+        <ul class="list-group list-group-flush mb-3" id="zoneList"></ul>
+        <button class="btn btn-dark w-100" type="button" id="zoneSave"><i class="bi bi-save" aria-hidden="true"></i> Save zones</button>
+        <div class="small mt-2" id="zoneStatus" role="status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{{ zones_json|json_script:"zones-data" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/zone_editor.js' %}"></script>{% endblock %}

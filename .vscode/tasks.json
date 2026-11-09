@@ -5,30 +5,76 @@
       "label": "Run server",
       "type": "process",
       "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-      "args": ["manage.py", "runserver"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": [
+        "manage.py",
+        "runserver"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "isBackground": true,
       "problemMatcher": [],
-      "presentation": { "panel": "dedicated", "reveal": "always" }
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Run camera worker",
+      "type": "process",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "args": [
+        "manage.py",
+        "run_cameras"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
     },
     {
       "label": "Seed demo data",
       "type": "process",
       "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-      "args": ["manage.py", "seed_demo", "--reset"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": [
+        "manage.py",
+        "seed_demo",
+        "--reset"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [],
-      "presentation": { "panel": "dedicated", "reveal": "always" }
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
     },
     {
       "label": "Run tests",
       "type": "process",
       "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-      "args": ["manage.py", "test"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "group": { "kind": "test", "isDefault": true },
+      "args": [
+        "manage.py",
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
       "problemMatcher": [],
-      "presentation": { "panel": "dedicated", "reveal": "always" }
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
     }
   ]
 }

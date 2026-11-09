@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "tasks",
     "reservations",
     "notifications",
+    "cctv",
     "reports",
 ]
 

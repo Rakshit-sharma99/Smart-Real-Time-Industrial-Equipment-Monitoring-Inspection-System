@@ -3,10 +3,12 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h2>Tables &amp; QR codes</h2>
-    <p class="subtitle">{{ tables|length }} tables (inactive ones keep their history)</p>
+    <h2>Tables</h2>
+    <p class="subtitle">{{ tables|length }} tables · QR codes, zones and checks live on each table's page</p>
   </div>
   <div class="page-actions">
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Table checks</a>
+    <a class="btn btn-outline-secondary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan</a>
     <button class="btn btn-outline-secondary" type="submit" form="qrForm"><i class="bi bi-printer" aria-hidden="true"></i> Print selected QR codes</button>
     <a class="btn btn-outline-secondary" href="{% url 'tables:qr_sheet' %}" target="_blank" rel="noopener"><i class="bi bi-qr-code" aria-hidden="true"></i> Print all</a>
     <a class="btn btn-primary" href="{% url 'tables:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New table</a>

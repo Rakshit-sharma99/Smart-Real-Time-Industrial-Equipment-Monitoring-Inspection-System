@@ -64,9 +64,8 @@ class HasDetectionToken(BasePermission):
 class DetectionSerializer(serializers.Serializer):
     table_id = serializers.UUIDField(help_text="The table's public id (the UUID in its QR code).")
     customers_present = serializers.BooleanField()
-    plates_present = serializers.BooleanField()
-    glasses_present = serializers.BooleanField()
-    leftovers_present = serializers.BooleanField(default=False)
+    dishes_present = serializers.BooleanField(required=False, allow_null=True, default=None,
+                                              help_text="Omit or null when the detector cannot see tableware.")
     confidence = serializers.DecimalField(max_digits=4, decimal_places=3, min_value=0, max_value=1, required=False)
     device_id = serializers.CharField(max_length=60, required=False, allow_blank=True, default="")
 

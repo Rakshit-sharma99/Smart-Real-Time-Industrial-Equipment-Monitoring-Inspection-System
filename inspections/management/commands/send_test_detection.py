@@ -34,8 +34,7 @@ class Command(BaseCommand):
             raise CommandError(f"No table T{options['table']}.")
         body = json.dumps({
             "table_id": str(table.public_id), "customers_present": bool(options["people"]),
-            "plates_present": bool(options["dishes"]), "glasses_present": bool(options["dishes"]),
-            "leftovers_present": False, "confidence": options["confidence"], "device_id": "test-camera",
+            "dishes_present": bool(options["dishes"]), "confidence": options["confidence"], "device_id": "test-camera",
         }).encode()
         request = urllib.request.Request(
             options["url"].rstrip("/") + "/api/v1/detections/", data=body, method="POST",

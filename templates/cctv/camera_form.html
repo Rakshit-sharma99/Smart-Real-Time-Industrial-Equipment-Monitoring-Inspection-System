@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="row"><div class="col-lg-7 col-xl-6">
+  <div class="card">
+    <div class="card-header">{% if camera %}Edit camera{% else %}New camera{% endif %}</div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_errors.html" %}
+        {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Save camera</button>
+          <a class="btn btn-outline-secondary" href="{% url 'cctv:camera_list' %}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <p class="small text-body-secondary">Examples: <code>rtsp://user:pass@192.168.1.20:554/stream1</code> · <code>0</code> (first webcam) · <code>C:\videos\dining-room.mp4</code> (demo).</p>
+</div></div>
+{% endblock %}

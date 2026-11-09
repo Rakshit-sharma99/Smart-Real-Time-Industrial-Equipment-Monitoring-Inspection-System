@@ -10,6 +10,7 @@ urlpatterns = [
     path("mine/", views.waiter_home, name="waiter_home"),
     path("mine/live/", views.waiter_fragment, name="waiter_fragment"),
     path("new/", views.task_create, name="create"),
+    path("quick-assign/", views.quick_assign, name="quick_assign"),
     path("<int:pk>/", views.task_detail, name="detail"),
     path("<int:pk>/assign/", views.assign, name="assign"),
     path("<int:pk>/unassign/", views.unassign, name="unassign"),

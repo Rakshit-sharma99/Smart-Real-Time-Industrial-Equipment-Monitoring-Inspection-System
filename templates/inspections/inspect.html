@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h2>Inspect {{ table.label }}</h2>
+    <h2>Check {{ table.label }}</h2>
     <p class="subtitle">{{ table.section.name }} · {{ table.capacity }} seats · now {% include "partials/status_badge.html" with status=table.status label=table.status_label %}</p>
   </div>
 </div>
@@ -16,7 +16,7 @@
     {% include "partials/form_field.html" with field=form.photos %}
     <div class="sticky-actions">
       <a class="btn btn-outline-secondary" href="{{ table.get_absolute_url }}">Cancel</a>
-      <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save inspection</button>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save check</button>
     </div>
   </form>
 </div></div>

@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.db.models import Case, IntegerField, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -70,18 +70,7 @@ def task_list_context(request):
     tasks = WaiterTask.objects.for_restaurant(request.restaurant).select_related("table", "assigned_to")
     tasks = filter_form.filter(tasks).annotate(rank=PRIORITY_RANK).order_by("status", "rank", "due_at")
     page_obj = Paginator(tasks, 25).get_page(request.GET.get("page"))
-    today = timezone.localdate()
-    active = Q(waiter_tasks__status__in=[WaiterTask.Status.ASSIGNED, WaiterTask.Status.IN_PROGRESS])
-    done = Q(waiter_tasks__status=WaiterTask.Status.COMPLETED, waiter_tasks__completed_at__date=today)
-    return {
-        "filter_form": filter_form,
-        "tasks": page_obj.object_list,
-        "page_obj": page_obj,
-        "waiter_progress": waiters_of(request.restaurant).annotate(
-            active=Count("waiter_tasks", filter=active), done_today=Count("waiter_tasks", filter=done),
-        ),
-        "query": request.GET.urlencode(),
-    }
+    return {"filter_form": filter_form, "tasks": page_obj.object_list, "page_obj": page_obj, "query": request.GET.urlencode()}
 
 
 @manager_required
@@ -116,6 +105,25 @@ def task_create(request):
             messages.success(request, f"{task.task_code} created" + (f" and assigned to {task.assigned_to.get_full_name()}." if task.assigned_to else "."))
             return redirect(request.POST.get("next") or task_url(task))
     return render(request, "tasks/form.html", {"form": form, "table": table, "page_title": "New waiter task"})
+
+
+@manager_required
+@require_POST
+def quick_assign(request):
+    """From the Overview's attention list: one click creates a full-reset task for a table and assigns a waiter."""
+    table = get_object_or_404(RestaurantTable, pk=request.POST.get("table"), restaurant=request.restaurant)
+    form = WaiterChoiceForm(request.POST, restaurant=request.restaurant)
+    if not form.is_valid():
+        messages.error(request, "Choose a waiter.")
+        return redirect("core:manager_dashboard")
+    try:
+        task = services.create_task(table=table, task_type=WaiterTask.TaskType.FULL_RESET, priority=WaiterTask.Priority.HIGH,
+                                    created_by=request.user, assignee=form.cleaned_data["waiter"])
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"{task.task_code}: {table.label} assigned to {task.assigned_to.get_full_name() or task.assigned_to.username}.")
+    return redirect("core:manager_dashboard")
 
 
 # --- One task ---------------------------------------------------------------------------------------

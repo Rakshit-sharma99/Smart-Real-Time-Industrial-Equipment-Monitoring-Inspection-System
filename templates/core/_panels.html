@@ -1,53 +1,36 @@
-{% load ui %}{# Right-hand panels of the manager dashboard. Rendered inside a live fragment. #}
+{% load ui %}{# Right column of the Overview. Rendered inside a live fragment. #}
 <div class="card">
-  <div class="card-header">Waiter tasks <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:list' %}">All tasks</a></div>
-  {% if open_tasks %}
-  <ul class="list-group list-group-flush">
-    {% for t in open_tasks %}
-    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-      <div class="min-w-0">
-        <a class="fw-semibold" href="{% url 'tasks:detail' t.pk %}">{{ t.table.label }}</a> <span class="text-body-secondary">· {{ t.get_task_type_display }}</span>
-        <div class="small text-body-secondary">{{ t.assigned_to|person:"Unassigned" }}{% if t.due_at %} · due {{ t.due_at|date:"H:i" }}{% if t.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</div>
-      </div>
-      {% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-    {% include "partials/empty_state.html" with icon="bi-check2-all" title="No open tasks" %}
-  {% endif %}
+  <div class="card-header">Live CCTV <a class="btn btn-sm btn-outline-secondary" href="{% url 'cctv:console' %}">Open</a></div>
+  {% for c in cameras %}
+  <a class="overview-cam text-decoration-none" href="{% url 'cctv:console_camera' c.pk %}">
+    {% if c.is_receiving %}<img src="{% url 'cctv:frame' c.pk %}" alt="">{% else %}<span class="overview-cam-off"><i class="bi bi-camera-video-off" aria-hidden="true"></i></span>{% endif %}
+    <span class="min-w-0"><span class="fw-semibold d-block text-truncate">{{ c.name }}</span><span class="cctv-status st-{{ c.live_status|lower }}">{{ c.get_live_status_display|default:c.live_status|lower|capfirst }}</span></span>
+  </a>
+  {% empty %}
+  <div class="card-body small text-body-secondary">No cameras yet. <a href="{% url 'cctv:camera_create' %}">Add one</a> under Settings.</div>
+  {% endfor %}
 </div>
 
 <div class="card">
-  <div class="card-header">Next 4 hours of bookings <a class="btn btn-sm btn-outline-secondary" href="{% url 'reservations:desk' %}">Booking desk</a></div>
-  {% if upcoming_bookings %}
+  <div class="card-header">Active waiter tasks <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:list' %}">All</a></div>
+  <ul class="list-group list-group-flush">
+    {% for t in active_tasks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+      <span class="min-w-0"><a class="fw-semibold" href="{% url 'tasks:detail' t.pk %}">{{ t.table.label }}</a> <span class="text-body-secondary small">{{ t.assigned_to|person_short }}{% if t.due_at %} · due {{ t.due_at|date:"H:i" }}{% endif %}</span></span>
+      {% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}
+    </li>
+    {% empty %}<li class="list-group-item text-body-secondary small">No active tasks.</li>{% endfor %}
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">Upcoming bookings <a class="btn btn-sm btn-outline-secondary" href="{% url 'reservations:desk' %}">Booking desk</a></div>
   <ul class="list-group list-group-flush">
     {% for r in upcoming_bookings %}
     <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-      <div class="min-w-0"><span class="fw-semibold">{{ r.start_at|date:"H:i" }}</span> · {{ r.table.label }} · {{ r.party_size }} guests
-        <div class="small text-body-secondary text-truncate"><a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a>{% if r.is_late %} · <span class="text-danger">late</span>{% endif %}</div></div>
+      <span class="min-w-0"><span class="fw-semibold">{{ r.start_at|date:"H:i" }}</span> · {{ r.table.label }} · {{ r.party_size }} guests<span class="small text-body-secondary d-block text-truncate"><a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a>{% if r.is_late %} · <span class="text-danger">late</span>{% endif %}</span></span>
       {% include "partials/status_badge.html" with status=r.status label=r.get_status_display %}
     </li>
-    {% endfor %}
+    {% empty %}<li class="list-group-item text-body-secondary small">No bookings in the next 4 hours.</li>{% endfor %}
   </ul>
-  {% else %}
-    {% include "partials/empty_state.html" with icon="bi-calendar" title="No bookings in the next 4 hours" %}
-  {% endif %}
-</div>
-
-<div class="card">
-  <div class="card-header">Latest inspections <a class="btn btn-sm btn-outline-secondary" href="{% url 'inspections:list' %}">All</a></div>
-  {% if recent_inspections %}
-  <ul class="list-group list-group-flush">
-    {% for i in recent_inspections %}
-    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-      <div class="min-w-0"><a class="fw-semibold" href="{% url 'inspections:detail' i.pk %}">{{ i.table.label }}</a>
-        <span class="small text-body-secondary">· {% if i.inspector %}{{ i.inspector|person_short }}{% else %}{{ i.get_source_display }}{% endif %} · {{ i.created_at|timesince }} ago</span></div>
-      {% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-    {% include "partials/empty_state.html" with icon="bi-clipboard2" title="No inspections yet" %}
-  {% endif %}
 </div>

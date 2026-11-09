@@ -29,7 +29,7 @@ class InspectionListView(RoleRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["filter_form"] = self.filter_form
-        context["page_title"] = "Inspections" if self.request.role == Role.MANAGER else "My inspections"
+        context["page_title"] = "Table checks" if self.request.role == Role.MANAGER else "My table checks"
         return context
 
 
@@ -64,10 +64,10 @@ def inspect(request, pk):
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
-            messages.success(request, f"{table.label} inspected: {inspection.get_resulting_status_display()}.")
+            messages.success(request, f"{table.label} checked: {inspection.get_resulting_status_display()}.")
             return redirect(table)
     return render(request, "inspections/inspect.html", {
-        "form": form, "table": table, "page_title": f"Inspect {table.label}",
+        "form": form, "table": table, "page_title": f"Check {table.label}",
     })
 
 

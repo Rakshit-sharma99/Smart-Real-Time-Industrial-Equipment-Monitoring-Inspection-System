@@ -1,0 +1,12 @@
+{% load ui %}{% if zone_tables %}
+<ul class="list-group list-group-flush cctv-table-list">
+  {% for t in zone_tables %}
+  <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+    <a class="fw-semibold" href="{{ t.get_absolute_url }}">{{ t.label }} <span class="text-body-secondary fw-normal small">· {{ t.capacity }} seats</span></a>
+    {% include "partials/status_badge.html" with status=t.status label=t.status_label %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="small text-body-secondary">No table zones yet. Open <strong>Table zones</strong> and draw each table on the picture.</p>
+{% endif %}

@@ -98,9 +98,15 @@ class RoleMatrixTests(StaffCase):
         page = self.client.get(reverse("tasks:waiter_home"))
         self.assertContains(page, "My tasks")
         self.assertNotContains(page, reverse("reports:home"))
+        self.assertNotContains(page, reverse("cctv:console"))
         self.client.force_login(self.receptionist)
         page = self.client.get(reverse("reservations:desk"))
         self.assertNotContains(page, reverse("inspections:scanner"))
+        self.assertNotContains(page, reverse("cctv:console"))
+        self.client.force_login(self.manager)
+        page = self.client.get(reverse("core:manager_dashboard"))
+        self.assertEqual(page.content.decode().count('class="sidebar-link'), 7)
+        self.assertContains(page, "Attention required")
 
 
 class LoginTests(StaffCase):
@@ -151,7 +157,9 @@ class TableWorkflowPageTests(StaffCase):
 
         # 2. The manager sees it and assigns a cleaning task.
         self.client.force_login(self.manager)
-        self.assertContains(self.client.get(reverse("core:fragment_kpis")), 'Need cleaning')
+        overview = self.client.get(reverse("core:fragment_overview"))
+        self.assertContains(overview, "Dishes remaining")  # the attention list names T12
+        self.assertContains(overview, reverse("tasks:quick_assign"))
         response = self.client.post(reverse("tasks:create"), {
             "table": self.table.pk, "task_type": "FULL_RESET", "priority": "HIGH", "due_minutes": 15,
             "assignee": self.waiter.pk, "description": "",
@@ -248,6 +256,15 @@ class ReservationPageTests(StaffCase):
         self.client.force_login(self.manager)
         self.assertContains(self.client.get(reverse("core:fragment_panels")), "Booking desk")
 
+    def test_quick_assign_from_attention_list(self):
+        inspections.record_inspection(self.table, self.waiter, **GUESTS_LEFT_CHECK)
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse("tasks:quick_assign"), {"table": self.table.pk, "waiter": self.waiter.pk})
+        self.assertRedirects(response, reverse("core:manager_dashboard"))
+        task = WaiterTask.objects.get()
+        self.assertEqual((task.assigned_to, task.priority, task.status), (self.waiter, "HIGH", WaiterTask.Status.ASSIGNED))
+        self.assertNotContains(self.client.get(reverse("core:fragment_overview")), "Dishes remaining")
+
     def test_waiter_never_sees_customer_names(self):
         bookings.create_reservation(restaurant=self.restaurant, table=self.table, customer_name="Secret Customer", phone="98765 43210",
                                     party_size=2, start_at=at(minutes=15), created_by=self.receptionist)
@@ -263,8 +280,8 @@ class ApiTests(StaffCase):
         return self.client.post(url, json.dumps(payload), content_type="application/json", **headers)
 
     def detection(self, **overrides):
-        payload = {"table_id": str(self.table.public_id), "customers_present": False, "plates_present": True,
-                   "glasses_present": False, "confidence": 0.9, "device_id": "cam-1"}
+        payload = {"table_id": str(self.table.public_id), "customers_present": False, "dishes_present": True,
+                   "confidence": 0.9, "device_id": "cam-1"}
         payload.update(overrides)
         return payload
 

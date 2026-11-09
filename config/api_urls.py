@@ -9,6 +9,7 @@ session + CSRF, camera services use the detection token.
 from django.contrib.auth.decorators import login_not_required
 from django.urls import path
 
+from cctv import api as cctv_api
 from inspections import api as inspections_api
 from notifications import views as notification_views
 from reservations import api as reservations_api
@@ -23,6 +24,8 @@ app_name = "api"
 
 urlpatterns = [
     path("detections/", api_view(inspections_api.DetectionView), name="detections"),
+    path("cameras/<int:pk>/frame/", api_view(cctv_api.CameraFrameView), name="camera_frame"),
+    path("cameras/<int:pk>/status/", api_view(cctv_api.CameraStatusView), name="camera_status"),
     path("floor/", api_view(tables_api.FloorApiView), name="floor"),
     path("tables/lookup/", api_view(inspections_api.TableLookupView), name="table_lookup"),
     path("reservations/", api_view(reservations_api.ReservationCreateView), name="reservations"),

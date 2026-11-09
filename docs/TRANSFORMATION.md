@@ -88,3 +88,74 @@ Server `runserver 127.0.0.1:8765` (port 8000 was held by another process on the 
 | 16 | 15 audit rows and 10 inspections remain after deactivation | PASS |
 
 `python manage.py test`: 62 tests, OK. Page smoke test: 72 checks over 3 roles × 2 widths, all pass.
+
+---
+
+# Phase 2 (2026-11-09): simplification + live CCTV redesign
+
+## Audit of the first RestaurantSpy version
+
+| Found | Decision |
+|---|---|
+| 11 sidebar items for the manager (Dashboard, Booking desk, Floor, Waiter tasks, Reservations, Inspections, Scan table QR, Reports, Tables & QR codes, Staff, Notifications, Settings) | **7**: Overview, Live CCTV, Tables, Waiter Tasks, Reservations, Staff, Settings. Floor merges into Overview; checks and QR codes move into table details; Reports is a link on Overview; Notifications is the bell. |
+| 9 KPI tiles on the dashboard | **4**: Occupied, Available, Needs cleaning, Reserved |
+| "Latest inspections" panel on the dashboard | removed (history lives on the table page) |
+| Floor filters (section/status/guests) on the dashboard | removed from Overview; kept on the booking desk where they matter |
+| Waiter sidebar: My tasks, Floor, Inspections, Scan, Notifications, Settings | **3**: My tasks, Scan table QR, Settings |
+| Receptionist sidebar: Booking desk, Floor, Reservations, Notifications, Settings | **3**: Booking desk, Reservations, Settings |
+| Task list "waiter progress" card and 3 filters | kept the filters, dropped the progress card (reports cover it) |
+| Reports page: 14 figures, chart, two PDFs | kept as a secondary page linked from Overview; no change to figures |
+| "Inspection" wording everywhere | user-facing wording is **Table check**; code names unchanged |
+| No camera feature at all; detections only via a bare API | new **cctv** app: cameras, table zones, background video worker, detector layer, live console, zone editor |
+
+Backend kept unchanged: table state rule, tasks, reservations, notifications, audit logs, security.
+
+## CCTV architecture
+
+```
+run_cameras (separate process)  --cv2.VideoCapture-->  RTSP / HTTP / file / webcam
+   | every N seconds: grab a frame, run the detector, map detections to table zones,
+   | temporal smoothing (a zone must agree for K samples before a change is published)
+   |  POST /api/v1/cameras/<id>/frame/   (token)  JPEG + per-zone results
+   v
+Django: caches the frame (30 s) and the zone results, applies confirmed changes
+        through inspections.services.record_detection(), publishes "tables" events
+   v
+Live CCTV console: refreshes the frame at 1 fps, draws the zones as an SVG overlay
+        with each table's current status, shows LIVE / DEMO / DISCONNECTED / AI unavailable
+```
+
+Honesty rules built in: a camera that stops sending frames never changes any table; the
+detector reports what it can detect (`person` with OpenCV's built-in HOG detector; dishes
+only when a dish-capable model such as Ultralytics YOLO is installed); file sources are
+always labelled DEMO; RTSP credentials are stored server-side and never sent to the browser.
+
+## Phase 2 acceptance (2026-11-09)
+
+Server on port 8765, worker `run_cameras --url http://127.0.0.1:8765`, camera "Main hall" = the PC's webcam
+(device 0, 640x480, OpenCV HOG people detector). Headless Edge for the browser checks.
+
+| # | Item | Result |
+|---|------|--------|
+| 1 | CCTV video connects | PASS - webcam opened by the worker; camera ONLINE after the first frame |
+| 2 | Video appears in the manager dashboard | PASS - Live CCTV console shows the frame (640 px) refreshing at 1 fps; Overview shows a thumbnail |
+| 3 | Table regions can be configured | PASS - zone editor: 4 seeded zones drawn; a 5th zone for T5 drawn by clicking and saved |
+| 4 | Detections map to the correct table | PASS - unit test (`assign_to_zones`): person -> zone 1, tableware -> zone 2, outside -> none |
+| 5 | Occupancy changes detected consistently | PASS (logic) - `ZoneTracker` publishes only after 3 agreeing samples; one passer-by frame changes nothing. Live: 0 people seen in the test room, so no live occupancy change could be shown |
+| 6 | Vacant tables with dishes are not marked Ready | PASS - API test: dishes seen -> needs clearing, dishes gone -> cleaning required, never Ready |
+| 7 | Manager receives table updates | PASS - WebSocket fragment refresh + notification (walkthrough 4) |
+| 8 | Manager assigns a waiter | PASS - from the Attention list (quick assign) and the task form (walkthrough 5) |
+| 9 | Waiter receives the task | PASS - phone board + notification (walkthrough 6) |
+| 10 | Waiter completes cleaning | PASS (walkthrough 7-8) |
+| 11 | Table readiness updated correctly | PASS - stays "needs clearing" with dishes left; Ready only after a clean check |
+| 12 | Receptionist sees the new availability | PASS - live desk + "table ready" notification (walkthrough 9) |
+| 13 | Receptionist reserves the table | PASS - walk-in seated; booking created; conflicts refused (walkthrough 10-11) |
+| 14 | Manager sees the reservation immediately | PASS (walkthrough 12) |
+| 15 | Camera disconnection does not mark tables vacant | PASS - worker stopped: console DISCONNECTED after the stale window, zero table changes (also a unit test) |
+| 16 | Manual override works and is recorded | PASS - override with reason appears in the audit log (walkthrough 2 + 16) |
+
+`python manage.py test`: 80 tests, OK. Smoke: 3 roles x 2 widths over the redesigned pages, all pass.
+
+**Not claimed:** dish detection with the built-in detector (it detects people only; the UI says "dishes not detectable"),
+and live person detection in this room (the webcam saw nobody during the run). RTSP was not tested against a
+real IP camera here; OpenCV's `VideoCapture` handles RTSP URLs and the worker treats them like any source.
