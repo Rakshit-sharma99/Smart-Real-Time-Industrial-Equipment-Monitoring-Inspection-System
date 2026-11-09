@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Tables &amp; QR codes</h2>
+    <p class="subtitle">{{ tables|length }} tables (inactive ones keep their history)</p>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-outline-secondary" type="submit" form="qrForm"><i class="bi bi-printer" aria-hidden="true"></i> Print selected QR codes</button>
+    <a class="btn btn-outline-secondary" href="{% url 'tables:qr_sheet' %}" target="_blank" rel="noopener"><i class="bi bi-qr-code" aria-hidden="true"></i> Print all</a>
+    <a class="btn btn-primary" href="{% url 'tables:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New table</a>
+  </div>
+</div>
+<form id="qrForm" method="get" action="{% url 'tables:qr_sheet' %}" target="_blank"></form>
+{% if tables %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col" class="col-check"><span class="visually-hidden">Select</span></th><th scope="col">Table</th><th scope="col">Section</th><th scope="col" class="num">Seats</th><th scope="col">Responsible waiter</th><th scope="col">Status</th><th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for t in tables %}
+      <tr>
+        <td class="col-check"><input class="form-check-input" type="checkbox" name="ids" value="{{ t.pk }}" form="qrForm" aria-label="Select {{ t.label }}"></td>
+        <td class="fw-semibold"><a href="{{ t.get_absolute_url }}">{{ t.label }}</a></td>
+        <td>{{ t.section.name }}</td>
+        <td class="num">{{ t.capacity }}</td>
+        <td>{{ t.assigned_waiter.get_full_name|default:t.assigned_waiter.username|default:"—" }}</td>
+        <td>{% include "partials/status_badge.html" with status=t.status label=t.status_label %}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:edit' t.pk %}">Edit</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:qr_png' t.pk %}?download=1" aria-label="Download QR for {{ t.label }}"><i class="bi bi-qr-code" aria-hidden="true"></i></a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% else %}
+  {% url 'tables:create' as create_url %}
+  {% include "partials/empty_state.html" with icon="bi-table" title="No tables yet" text="Add your first table; it gets its own QR code." action_url=create_url action_label="New table" %}
+{% endif %}
+{% endblock %}

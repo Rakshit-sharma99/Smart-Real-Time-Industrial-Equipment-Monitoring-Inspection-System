@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Notifications</h2>
+    <p class="subtitle">{{ unread_notifications }} unread</p>
+  </div>
+  {% if unread_notifications %}
+  <form method="post" action="{% url 'notifications:mark_all_read' %}">{% csrf_token %}
+    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-check2-all" aria-hidden="true"></i> Mark all as read</button>
+  </form>
+  {% endif %}
+</div>
+{% if notifications %}
+<div class="card">
+  {% for n in notifications %}
+  <form method="post" action="{% url 'notifications:open' n.pk %}">{% csrf_token %}
+    <button class="notification-item{% if not n.is_read %} unread{% endif %}" type="submit">
+      <div class="d-flex justify-content-between gap-2">
+        <span class="n-title">{{ n.title }}</span>
+        <span class="n-meta text-nowrap">{{ n.created_at|date:"d M H:i" }}</span>
+      </div>
+      {% if n.message %}<div class="small">{{ n.message }}</div>{% endif %}
+      <div class="n-meta">{{ n.get_kind_display }}</div>
+    </button>
+  </form>
+  {% endfor %}
+</div>
+{% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-bell" title="No notifications yet" text="You will be told about new tasks, finished cleaning, ready tables and bookings here." %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h2>{{ task.task_code }} · {{ task.table.label }}</h2>
+      {% include "partials/status_badge.html" with status=task.status label=task.get_status_display %}
+      {% include "partials/status_badge.html" with status=task.priority label=task.get_priority_display %}
+    </div>
+    <p class="subtitle">{{ task.get_task_type_display }} · <a href="{{ task.table.get_absolute_url }}">{{ task.table.label }}, {{ task.table.section.name }}</a>{% if task.due_at %} · due {{ task.due_at|date:"d M H:i" }}{% if task.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% if is_waiter_user %}{% url 'tasks:waiter_home' %}{% else %}{% url 'tasks:list' %}{% endif %}">Back</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    {% if task.description %}<div class="card"><div class="card-body">{{ task.description|linebreaksbr }}</div></div>{% endif %}
+
+    {% if task.status == "ASSIGNED" and "IN_PROGRESS" in allowed %}
+    <div class="card"><div class="card-body task-actions mt-0">
+      {% if is_assignee and not task.accepted_at %}<form method="post" action="{% url 'tasks:accept' task.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary" type="submit"><i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> Accept</button></form>{% endif %}
+      <form method="post" action="{% url 'tasks:start' task.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit"><i class="bi bi-play-fill" aria-hidden="true"></i> Start work</button></form>
+    </div></div>
+    {% endif %}
+
+    {% if task.status == "IN_PROGRESS" and "COMPLETED" in allowed %}
+    <div class="card" id="complete">
+      <div class="card-header">Finish: check the table</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'tasks:complete' task.pk %}" novalidate data-once>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" with form=complete_form %}
+          <p class="small text-body-secondary">Answer honestly: the table only becomes <strong>Ready</strong> when everything is cleared, clean and arranged.</p>
+          {% include "inspections/_questions.html" with form=complete_form %}
+          <div class="mt-3">{% include "partials/form_field.html" with field=complete_form.remarks %}</div>
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Complete task</button>
+        </form>
+        <hr>
+        <form method="post" action="{% url 'tasks:progress' task.pk %}" class="d-flex gap-2">
+          {% csrf_token %}
+          <label class="visually-hidden" for="{{ progress_form.note.id_for_label }}">Progress note</label>{{ progress_form.note }}
+          <button class="btn btn-outline-secondary" type="submit">Note</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_manager_user and task.status != "COMPLETED" %}
+    <div class="card">
+      <div class="card-header">Manager</div>
+      <div class="card-body d-grid gap-3">
+        <form method="post" action="{% url 'tasks:assign' task.pk %}" class="d-flex gap-2 align-items-end">
+          {% csrf_token %}
+          <div class="flex-grow-1"><label class="form-label small" for="{{ waiter_form.waiter.id_for_label }}">{% if task.assigned_to %}Reassign to{% else %}Assign to{% endif %}</label>{{ waiter_form.waiter }}</div>
+          <button class="btn btn-outline-primary" type="submit">{% if task.assigned_to %}Reassign{% else %}Assign{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'tasks:priority' task.pk %}" class="d-flex gap-2 align-items-end">
+          {% csrf_token %}
+          <div class="flex-grow-1"><label class="form-label small" for="{{ priority_form.priority.id_for_label }}">Priority</label>{{ priority_form.priority }}</div>
+          <button class="btn btn-outline-secondary" type="submit">Change</button>
+        </form>
+        {% if "OPEN" in allowed %}
+        <form method="post" action="{% url 'tasks:unassign' task.pk %}" data-confirm="Unassign {{ task.task_code }}? It goes back to Open." data-confirm-button="Unassign">{% csrf_token %}<button class="btn btn-outline-danger btn-sm" type="submit">Unassign</button></form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if task.status == "COMPLETED" %}
+    <div class="card"><div class="card-body">
+      <dl class="detail-list">
+        <dt>Completed</dt><dd>{{ task.completed_at|date:"d M H:i" }}{% if task.duration_minutes is not None %} · {{ task.duration_minutes }} min of work{% endif %}</dd>
+        {% if task.completion_remarks %}<dt>Remarks</dt><dd>{{ task.completion_remarks }}</dd>{% endif %}
+      </dl>
+    </div></div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Details</div>
+      <div class="card-body"><dl class="detail-list">
+        <dt>Waiter</dt><dd>{{ task.assigned_to.get_full_name|default:task.assigned_to.username|default:"Unassigned" }}</dd>
+        <dt>Created</dt><dd>{{ task.created_at|date:"d M H:i" }} by {{ task.created_by.get_full_name|default:task.created_by.username }}</dd>
+        <dt>Assigned</dt><dd>{{ task.assigned_at|date:"d M H:i"|default:"—" }}</dd>
+        <dt>Started</dt><dd>{{ task.started_at|date:"d M H:i"|default:"—" }}</dd>
+      </dl></div>
+    </div>
+    <div class="card">
+      <div class="card-header">History</div>
+      <div class="card-body"><ol class="timeline">
+        {% for h in history %}
+        <li><span class="timeline-title">{{ h.get_action_display }}</span><span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.changed_by.get_full_name|default:h.changed_by.username|default:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
+        {% endfor %}
+      </ol></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

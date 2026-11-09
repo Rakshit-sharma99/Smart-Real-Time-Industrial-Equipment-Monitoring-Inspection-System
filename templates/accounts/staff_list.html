@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Staff</h2>
+    <p class="subtitle">{{ staff|length }} people at {{ request.restaurant.name }}</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'accounts:staff_create' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Add staff member</a>
+</div>
+{% if staff %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col">Name</th><th scope="col">Username</th><th scope="col">Role</th><th scope="col">Phone</th><th scope="col">Account</th><th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for member in staff %}
+      <tr>
+        <td class="fw-semibold">{{ member.get_full_name|default:"—" }}</td>
+        <td>{{ member.username }}</td>
+        <td>{{ member.profile.get_role_display }}</td>
+        <td>{{ member.profile.phone|default:"—" }}</td>
+        <td>{% if member.is_active %}{% include "partials/status_badge.html" with status="COMPLETED" label="Active" %}{% else %}{% include "partials/status_badge.html" with status="INACTIVE" label="Inactive" %}{% endif %}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:staff_edit' member.pk %}">Edit</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:staff_password' member.pk %}">Reset password</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-people" title="No staff yet" %}
+{% endif %}
+{% endblock %}

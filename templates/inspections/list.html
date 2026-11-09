@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{{ page_title }}</h2>
+    <p class="subtitle">{{ page_obj.paginator.count|default:0 }} inspection{{ page_obj.paginator.count|pluralize }}</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan a table</a>
+</div>
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.table.id_for_label }}">Table number</label>{{ filter_form.table }}</div>
+  <div><label class="form-label" for="{{ filter_form.source.id_for_label }}">Source</label>{{ filter_form.source }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>
+    {% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'inspections:list' %}">Reset</a>{% endif %}
+  </div>
+</form>
+{% if inspections %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col">Inspection</th><th scope="col">Table</th><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
+    <tbody>
+      {% for i in inspections %}
+      <tr>
+        <td><a class="fw-semibold" href="{% url 'inspections:detail' i.pk %}">{{ i.reference }}</a></td>
+        <td><a href="{{ i.table.get_absolute_url }}">{{ i.table.label }}</a></td>
+        <td class="text-nowrap small">{{ i.created_at|date:"d M H:i" }}</td>
+        <td>{% if i.inspector %}{{ i.inspector.get_full_name|default:i.inspector.username }}{% else %}{{ i.get_source_display }}{% endif %}</td>
+        <td>{{ i.customers_present|yesno:"Yes,No" }}</td>
+        <td>{{ i.dishes_present|yesno:"Yes,No" }}</td>
+        <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}{% if not i.applied %} <span class="small text-body-secondary">not applied</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-clipboard2" title="No inspections found" text="Scan a table's QR code to record one." %}
+{% endif %}
+{% endblock %}

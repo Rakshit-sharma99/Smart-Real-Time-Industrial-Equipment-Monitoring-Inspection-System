@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Inspect {{ table.label }}</h2>
+    <p class="subtitle">{{ table.section.name }} · {{ table.capacity }} seats · now {% include "partials/status_badge.html" with status=table.status label=table.status_label %}</p>
+  </div>
+</div>
+<div class="row"><div class="col-lg-8 col-xl-6">
+  <form method="post" enctype="multipart/form-data" novalidate data-once>
+    {% csrf_token %}
+    {% include "partials/form_errors.html" %}
+    <p class="small text-body-secondary">The answers are pre-filled with what the system currently knows. Change anything that is different.</p>
+    {% include "inspections/_questions.html" %}
+    <div class="mt-3">{% include "partials/form_field.html" with field=form.remarks %}</div>
+    {% include "partials/form_field.html" with field=form.photos %}
+    <div class="sticky-actions">
+      <a class="btn btn-outline-secondary" href="{{ table.get_absolute_url }}">Cancel</a>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save inspection</button>
+    </div>
+  </form>
+</div></div>
+{% endblock %}

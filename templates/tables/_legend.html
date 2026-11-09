@@ -1,0 +1,3 @@
+{% load ui %}<div class="floor-legend" aria-label="Status colours">
+  {% for value, label in legend %}<span><span class="legend-dot" style="background: var(--st-{{ value|status_tone }})"></span>{{ label }}</span>{% endfor %}
+</div>

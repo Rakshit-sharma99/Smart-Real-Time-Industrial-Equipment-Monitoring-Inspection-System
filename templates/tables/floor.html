@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Floor</h2>
+    <p class="subtitle">{{ floor_summary.total }} tables · {{ floor_summary.ready }} ready · {{ floor_summary.occupied }} occupied · {{ floor_summary.needs_cleaning }} need cleaning</p>
+  </div>
+  <div class="page-actions">
+    {% if is_manager_user or is_waiter_user %}<a class="btn btn-outline-secondary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan table QR</a>{% endif %}
+    {% if is_manager_user %}<a class="btn btn-outline-secondary" href="{% url 'tables:manage' %}"><i class="bi bi-table" aria-hidden="true"></i> Manage tables</a>{% endif %}
+  </div>
+</div>
+{% include "tables/_filters.html" %}
+{% include "tables/_legend.html" %}
+<div data-live-fragment="{% url 'tables:floor_fragment' %}?{{ floor_query }}" data-live-topics="tables tasks reservations">
+  {% include "tables/_floor.html" %}
+</div>
+{% endblock %}

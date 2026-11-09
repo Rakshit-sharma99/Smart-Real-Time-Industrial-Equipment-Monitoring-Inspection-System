@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><h2>Waiter tasks</h2><p class="subtitle">{{ page_obj.paginator.count }} shown</p></div>
+  <a class="btn btn-primary" href="{% url 'tasks:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New task</a>
+</div>
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div><label class="form-label" for="{{ filter_form.waiter.id_for_label }}">Waiter</label>{{ filter_form.waiter }}</div>
+  <div><label class="form-label" for="{{ filter_form.priority.id_for_label }}">Priority</label>{{ filter_form.priority }}</div>
+  <div class="filter-actions"><button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>{% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'tasks:list' %}">Reset</a>{% endif %}</div>
+</form>
+<div data-live-fragment="{% url 'tasks:list_fragment' %}?{{ query }}" data-live-topics="tasks">
+  {% include "tasks/_task_table.html" %}
+</div>
+{% endblock %}

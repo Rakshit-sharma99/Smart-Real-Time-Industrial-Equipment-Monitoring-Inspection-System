@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="toolbar">
+  <p class="text-body-secondary small mb-0">Areas of the restaurant. Tables are grouped by section on every floor view.</p>
+  <a class="btn btn-primary" href="{% url 'core:section_create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New section</a>
+</div>
+{% if sections %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col">Section</th><th scope="col">Floor</th><th scope="col" class="num">Tables</th><th scope="col" class="num">Order</th><th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for s in sections %}
+      <tr><td class="fw-semibold">{{ s.name }}</td><td>{{ s.floor|default:"—" }}</td><td class="num">{{ s.tables.count }}</td><td class="num">{{ s.sort_order }}</td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'core:section_edit' s.pk %}">Edit</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% else %}
+  {% url 'core:section_create' as create_url %}
+  {% include "partials/empty_state.html" with icon="bi-layout-three-columns" title="No sections yet" text="Create sections such as Main hall or Terrace, then add tables." action_url=create_url action_label="New section" %}
+{% endif %}
+{% endblock %}

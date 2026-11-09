@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Table {{ table.label }}</h2>
+    <p class="subtitle">{{ table.section.name }}{% if table.section.floor %} · {{ table.section.floor }}{% endif %} · {{ table.capacity }} seats{% if not table.is_active %} · <strong>deactivated</strong>{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    {% if can_inspect %}<a class="btn btn-primary" href="{% url 'inspections:inspect' table.pk %}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Inspect</a>{% endif %}
+    {% if is_manager_user %}<a class="btn btn-outline-secondary" href="{% url 'tasks:create' %}?table={{ table.pk }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Waiter task</a>{% endif %}
+    {% if is_manager_user or is_receptionist_user %}<a class="btn btn-outline-secondary" href="{% url 'reservations:desk' %}?guests={{ table.capacity }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Booking</a>{% endif %}
+    {% if is_manager_user %}<a class="btn btn-outline-secondary" href="{% url 'reports:table_pdf' table.pk %}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> History PDF</a>{% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div data-live-fragment="{% url 'tables:status_fragment' table.pk %}" data-live-topics="tables tasks reservations">
+      {% include "tables/_status_card.html" %}
+    </div>
+
+    {% if is_manager_user %}
+    <div class="card">
+      <div class="card-header">Manager actions</div>
+      <div class="card-body d-grid gap-3">
+        <form method="post" action="{% url 'tables:assign_waiter' table.pk %}" class="d-flex gap-2 align-items-end">
+          {% csrf_token %}
+          <div class="flex-grow-1"><label class="form-label small" for="{{ assign_form.waiter.id_for_label }}">Responsible waiter</label>{{ assign_form.waiter }}</div>
+          <button class="btn btn-outline-primary" type="submit">Assign</button>
+        </form>
+
+        {% if table.is_blocked %}
+        <form method="post" action="{% url 'tables:block' table.pk %}" data-confirm="Unblock {{ table.label }}? It becomes available again." data-confirm-button="Unblock" data-confirm-tone="primary">
+          {% csrf_token %}<input type="hidden" name="blocked" value="0">
+          <button class="btn btn-outline-secondary w-100" type="submit"><i class="bi bi-unlock" aria-hidden="true"></i> Unblock table</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'tables:block' table.pk %}" class="d-flex gap-2 align-items-end" data-confirm="Block {{ table.label }}? It cannot be booked or seated until unblocked." data-confirm-button="Block table">
+          {% csrf_token %}<input type="hidden" name="blocked" value="1">
+          <div class="flex-grow-1"><label class="form-label small" for="{{ block_form.reason.id_for_label }}">Block (temporarily unavailable)</label>{{ block_form.reason }}</div>
+          <button class="btn btn-outline-danger" type="submit">Block</button>
+        </form>
+        {% endif %}
+
+        <details>
+          <summary class="fw-semibold">Override status (audited)</summary>
+          <form method="post" action="{% url 'tables:override' table.pk %}" class="mt-2" data-confirm="Override the state of {{ table.label }}? Your name and reason go into the audit log." data-confirm-button="Override" data-confirm-tone="primary">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-6"><label class="form-label small" for="{{ override_form.is_occupied.id_for_label }}">{{ override_form.is_occupied.label }}</label>{{ override_form.is_occupied }}</div>
+              <div class="col-6"><label class="form-label small" for="{{ override_form.cleanliness.id_for_label }}">{{ override_form.cleanliness.label }}</label>{{ override_form.cleanliness }}</div>
+              <div class="col-12"><label class="form-label small" for="{{ override_form.reason.id_for_label }}">Reason</label>{{ override_form.reason }}</div>
+            </div>
+            <button class="btn btn-outline-primary mt-2" type="submit">Apply override</button>
+          </form>
+        </details>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:edit' table.pk %}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit table</a>
+          <form method="post" action="{% url 'tables:set_active' table.pk %}" {% if table.is_active %}data-confirm="Deactivate {{ table.label }}? Its history is kept." data-confirm-button="Deactivate"{% endif %}>
+            {% csrf_token %}<input type="hidden" name="active" value="{{ table.is_active|yesno:'0,1' }}">
+            <button class="btn btn-sm {% if table.is_active %}btn-outline-danger{% else %}btn-outline-primary{% endif %}" type="submit">{% if table.is_active %}Deactivate{% else %}Reactivate{% endif %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">QR code</div>
+      <div class="card-body text-center">
+        <img class="qr-image" src="{% url 'tables:qr_png' table.pk %}" alt="QR code for table {{ table.label }}" width="180" height="180">
+        <p class="small text-body-secondary mt-2 mb-2">Staff scan this to inspect the table (sign-in required).</p>
+        {% if is_manager_user %}
+        <div class="d-flex gap-2 justify-content-center">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:qr_png' table.pk %}?download=1"><i class="bi bi-download" aria-hidden="true"></i> PNG</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:qr_sheet' %}?ids={{ table.pk }}" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card">
+      <ul class="nav nav-underline nav-tabs-card" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-inspections" type="button" role="tab" aria-selected="true">Inspections</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab" aria-selected="false">Audit log</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button" role="tab" aria-selected="false">Tasks</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-bookings" type="button" role="tab" aria-selected="false">Bookings</button></li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-inspections" role="tabpanel">
+          {% if inspections %}
+          <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
+            <tbody>{% for i in inspections %}
+              <tr><td class="text-nowrap">{% if is_manager_user or i.inspector_id == user.pk %}<a href="{% url 'inspections:detail' i.pk %}">{{ i.created_at|date:"d M H:i" }}</a>{% else %}{{ i.created_at|date:"d M H:i" }}{% endif %}</td>
+                <td>{% if i.inspector %}{{ i.inspector.get_short_name|default:i.inspector.username }}{% else %}{{ i.get_source_display }}{% endif %}</td>
+                <td>{{ i.customers_present|yesno:"Yes,No" }}</td><td>{{ i.dishes_present|yesno:"Yes,No" }}</td>
+                <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}</td></tr>
+            {% endfor %}</tbody>
+          </table></div></div>
+          {% else %}{% include "partials/empty_state.html" with icon="bi-clipboard2" title="No inspections yet" %}{% endif %}
+        </div>
+        <div class="tab-pane fade" id="tab-history" role="tabpanel">
+          {% if history %}
+          <div class="card-body"><ol class="timeline">
+            {% for h in history %}
+            <li><span class="timeline-title">{% if h.from_status and h.from_status != h.to_status %}{{ h.get_from_status_display }} → {% endif %}{{ h.get_to_status_display }}</span>
+              <span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.get_source_display }}{% if h.changed_by %} · {{ h.changed_by.get_full_name|default:h.changed_by.username }}{% endif %}</span>
+              {% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
+            {% endfor %}
+          </ol></div>
+          {% else %}{% include "partials/empty_state.html" with icon="bi-clock-history" title="No changes recorded yet" %}{% endif %}
+        </div>
+        <div class="tab-pane fade" id="tab-tasks" role="tabpanel">
+          {% if tasks %}
+          <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th scope="col">Task</th><th scope="col">Type</th><th scope="col">Waiter</th><th scope="col">Status</th></tr></thead>
+            <tbody>{% for t in tasks %}
+              <tr><td>{% if is_manager_user or t.assigned_to_id == user.pk %}<a href="{% url 'tasks:detail' t.pk %}">{{ t.task_code }}</a>{% else %}{{ t.task_code }}{% endif %}</td><td>{{ t.get_task_type_display }}</td>
+                <td>{{ t.assigned_to.get_short_name|default:t.assigned_to.username|default:"—" }}</td>
+                <td>{% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}</td></tr>
+            {% endfor %}</tbody>
+          </table></div></div>
+          {% else %}{% include "partials/empty_state.html" with icon="bi-list-check" title="No tasks for this table" %}{% endif %}
+        </div>
+        <div class="tab-pane fade" id="tab-bookings" role="tabpanel">
+          {% if bookings %}
+          <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th scope="col">Time</th><th scope="col">Guests</th>{% if show_customers %}<th scope="col">Customer</th>{% endif %}<th scope="col">Status</th></tr></thead>
+            <tbody>{% for r in bookings %}
+              <tr><td class="text-nowrap">{% if show_customers %}<a href="{% url 'reservations:detail' r.pk %}">{{ r.start_at|date:"d M H:i" }}</a>{% else %}{{ r.start_at|date:"d M H:i" }}{% endif %}</td><td>{{ r.party_size }}</td>
+                {% if show_customers %}<td>{{ r.customer_name }}</td>{% endif %}
+                <td>{% include "partials/status_badge.html" with status=r.status label=r.get_status_display %}</td></tr>
+            {% endfor %}</tbody>
+          </table></div></div>
+          {% else %}{% include "partials/empty_state.html" with icon="bi-calendar" title="No current bookings" %}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

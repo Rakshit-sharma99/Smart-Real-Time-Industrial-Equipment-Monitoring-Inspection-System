@@ -1,0 +1,39 @@
+{# The waiter's board: active tasks then their tables. Rendered inside a live fragment. #}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h3 class="h6 text-body-secondary text-uppercase mb-0">Your tasks ({{ my_tasks|length }})</h3>
+  <span class="small text-body-secondary">{{ done_today }} done today</span>
+</div>
+{% for task in my_tasks %}
+<div class="task-card prio-{{ task.priority }}">
+  <div class="task-head">
+    <div>
+      <div class="task-table">{{ task.table.label }}</div>
+      <div class="task-title">{{ task.get_task_type_display }}</div>
+      <div class="task-meta">{{ task.task_code }} · {{ task.table.section.name }}{% if task.due_at %} · due {{ task.due_at|date:"H:i" }}{% if task.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</div>
+    </div>
+    <div class="text-end">
+      {% include "partials/status_badge.html" with status=task.priority label=task.get_priority_display %}<br>
+      {% include "partials/status_badge.html" with status=task.status label=task.get_status_display %}
+    </div>
+  </div>
+  {% if task.description %}<p class="small mb-0 mt-2">{{ task.description }}</p>{% endif %}
+  <div class="task-actions">
+    {% if task.status == "ASSIGNED" %}
+      {% if not task.accepted_at %}
+      <form method="post" action="{% url 'tasks:accept' task.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'tasks:waiter_home' %}"><button class="btn btn-outline-secondary w-100" type="submit"><i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> Accept</button></form>
+      {% endif %}
+      <form method="post" action="{% url 'tasks:start' task.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'tasks:waiter_home' %}"><button class="btn btn-primary w-100" type="submit"><i class="bi bi-play-fill" aria-hidden="true"></i> Start</button></form>
+    {% elif task.status == "IN_PROGRESS" %}
+      <a class="btn btn-primary w-100" href="{% url 'tasks:detail' task.pk %}#complete"><i class="bi bi-check2-circle" aria-hidden="true"></i> Finish &amp; check table</a>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'tasks:detail' task.pk %}">Details</a>
+  </div>
+</div>
+{% empty %}
+  {% include "partials/empty_state.html" with icon="bi-check2-all" title="No tasks right now" text="New tasks from your manager appear here automatically." %}
+{% endfor %}
+
+{% if my_tables %}
+<h3 class="h6 text-body-secondary text-uppercase mt-4 mb-2">Your tables</h3>
+<div class="floor-grid">{% for t in my_tables %}{% include "partials/table_tile.html" %}{% endfor %}</div>
+{% endif %}

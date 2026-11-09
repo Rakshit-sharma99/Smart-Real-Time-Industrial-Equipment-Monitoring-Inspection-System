@@ -1,0 +1,23 @@
+<div data-unread="{{ unread_notifications|default:0 }}">
+  <div class="menu-head">
+    <span>Notifications</span>
+    {% if unread_notifications %}
+    <form method="post" action="{% url 'notifications:mark_all_read' %}">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="btn btn-sm btn-link p-0" type="submit">Mark all read</button>
+    </form>
+    {% endif %}
+  </div>
+  {% for n in notifications %}
+    <form method="post" action="{% url 'notifications:open' n.pk %}">{% csrf_token %}
+      <button class="notification-item{% if not n.is_read %} unread{% endif %}" type="submit">
+        <div class="n-title">{{ n.title }}</div>
+        {% if n.message %}<div class="small">{{ n.message }}</div>{% endif %}
+        <div class="n-meta">{{ n.created_at|timesince }} ago</div>
+      </button>
+    </form>
+  {% empty %}
+    <p class="small text-body-secondary px-3 py-3 mb-0">Nothing yet. Updates about tables, tasks and bookings appear here.</p>
+  {% endfor %}
+  <a class="dropdown-item text-center small py-2" href="{% url 'notifications:list' %}">See all notifications</a>
+</div>

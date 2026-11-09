@@ -1,0 +1,38 @@
+{# Manager task table + waiter progress. Rendered inside a live fragment. #}
+<div class="row g-3">
+  <div class="col-xl-8">
+    {% if tasks %}
+    <div class="table-wrap"><div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th scope="col">Task</th><th scope="col">Table</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Waiter</th><th scope="col">Deadline</th></tr></thead>
+        <tbody>
+          {% for t in tasks %}
+          <tr>
+            <td><a class="fw-semibold" href="{% url 'tasks:detail' t.pk %}">{{ t.task_code }}</a></td>
+            <td><a href="{{ t.table.get_absolute_url }}">{{ t.table.label }}</a></td>
+            <td>{{ t.get_task_type_display }}</td>
+            <td>{% include "partials/status_badge.html" with status=t.priority label=t.get_priority_display %}</td>
+            <td>{% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}</td>
+            <td>{{ t.assigned_to.get_full_name|default:t.assigned_to.username|default:"—" }}</td>
+            <td class="text-nowrap small{% if t.is_overdue %} text-danger fw-semibold{% endif %}">{% if t.due_at %}{{ t.due_at|date:"H:i" }}{% if t.is_overdue %} overdue{% endif %}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div></div>
+    {% include "partials/pagination.html" %}
+    {% else %}
+      {% include "partials/empty_state.html" with icon="bi-list-check" title="No tasks match" %}
+    {% endif %}
+  </div>
+  <div class="col-xl-4">
+    <div class="card">
+      <div class="card-header">Waiter progress</div>
+      <ul class="list-group list-group-flush">
+        {% for w in waiter_progress %}
+        <li class="list-group-item d-flex justify-content-between"><span>{{ w.get_full_name|default:w.username }}</span><span class="small text-body-secondary">{{ w.active }} active · {{ w.done_today }} done today</span></li>
+        {% empty %}<li class="list-group-item text-body-secondary">No waiters yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,19 @@
+{% load ui %}{# Current state of one table. Rendered inside a live fragment. #}
+<div class="card">
+  <div class="card-header">
+    <span>Current state</span>
+    {% include "partials/status_badge.html" with status=table.status label=table.status_label %}
+  </div>
+  <div class="card-body">
+    <dl class="detail-list">
+      <dt>Customers</dt><dd>{% if table.is_occupied %}<strong>Seated</strong>{% else %}None{% endif %}</dd>
+      <dt>Condition</dt><dd>{{ table.get_cleanliness_display }}</dd>
+      {% if table.cleaning_in_progress %}<dt>Cleaning</dt><dd>In progress</dd>{% endif %}
+      {% if table.is_blocked %}<dt>Blocked</dt><dd>{{ table.block_reason }}</dd>{% endif %}
+      <dt>Responsible waiter</dt><dd>{{ table.assigned_waiter.get_full_name|default:table.assigned_waiter.username|default:"Nobody" }}</dd>
+      <dt>Last inspected</dt><dd>{% if table.last_inspected_at %}{{ table.last_inspected_at|date:"d M H:i" }} ({{ table.last_inspected_at|timesince }} ago){% else %}Never{% endif %}</dd>
+      <dt>Last change</dt><dd>{{ table.status_updated_at|date:"d M H:i" }} ({{ table.status_updated_at|timesince }} ago)</dd>
+      <dt>Next booking</dt><dd>{% if table.next_booking_at %}{{ table.next_booking_at|date:"d M H:i" }} · {{ table.next_booking_party }} guests{% else %}None{% endif %}</dd>
+    </dl>
+  </div>
+</div>

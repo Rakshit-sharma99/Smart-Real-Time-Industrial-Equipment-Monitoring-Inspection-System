@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h2>{{ inspection.reference }}</h2>
+      {% if inspection.resulting_status %}{% include "partials/status_badge.html" with status=inspection.resulting_status label=inspection.get_resulting_status_display %}{% endif %}
+    </div>
+    <p class="subtitle"><a href="{{ inspection.table.get_absolute_url }}">Table {{ inspection.table.label }}</a> · {{ inspection.created_at|date:"d M Y, H:i" }} · {{ inspection.get_source_display }}</p>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Answers</div>
+      <div class="card-body">
+        <dl class="detail-list">
+          <dt>Inspected by</dt><dd>{% if inspection.inspector %}{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}{% else %}{{ inspection.device_id|default:"Camera" }}{% endif %}</dd>
+          {% if inspection.confidence is not None %}<dt>Confidence</dt><dd>{{ inspection.confidence }}{% if not inspection.applied %} (too low: recorded, not applied){% endif %}</dd>{% endif %}
+          {% if inspection.task %}<dt>Task</dt><dd><a href="{% url 'tasks:detail' inspection.task_id %}">{{ inspection.task.task_code }}</a></dd>{% endif %}
+          <dt>Customers seated</dt><dd>{{ inspection.customers_present|yesno:"Yes,No" }}</dd>
+          <dt>Plates</dt><dd>{{ inspection.plates_present|yesno:"Yes,No" }}</dd>
+          <dt>Glasses</dt><dd>{{ inspection.glasses_present|yesno:"Yes,No" }}</dd>
+          <dt>Leftover food</dt><dd>{{ inspection.leftovers_present|yesno:"Yes,No" }}</dd>
+          <dt>Table clean</dt><dd>{{ inspection.table_clean|yesno:"Yes,No,Not checked" }}</dd>
+          <dt>Chairs arranged</dt><dd>{{ inspection.chairs_arranged|yesno:"Yes,No,Not checked" }}</dd>
+          <dt>Ready for next</dt><dd>{{ inspection.ready_for_next|yesno:"Yes,No" }}</dd>
+          {% if inspection.remarks %}<dt>Remarks</dt><dd>{{ inspection.remarks|linebreaksbr }}</dd>{% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Photos</div>
+      <div class="card-body">
+        {% if photos %}
+          <div class="d-flex flex-wrap gap-2">{% for p in photos %}<a href="{% url 'inspections:photo' p.pk %}" target="_blank" rel="noopener"><img class="photo-thumb" src="{% url 'inspections:photo' p.pk %}" alt="Inspection photo {{ forloop.counter }}" loading="lazy"></a>{% endfor %}</div>
+        {% else %}<p class="text-body-secondary mb-0">No photos.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

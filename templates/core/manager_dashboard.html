@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div data-live-fragment="{% url 'core:fragment_kpis' %}" data-live-topics="tables tasks reservations">
+  {% include "core/_kpis.html" %}
+</div>
+
+<div class="row g-3">
+  <div class="col-xxl-8">
+    <div class="card">
+      <div class="card-header">
+        Live floor
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Waiter task</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:floor' %}">Full floor view</a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% include "tables/_legend.html" %}
+        <div data-live-fragment="{% url 'tables:floor_fragment' %}?{{ floor_query }}" data-live-topics="tables tasks reservations">
+          {% include "tables/_floor.html" %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xxl-4">
+    <div data-live-fragment="{% url 'core:fragment_panels' %}" data-live-topics="tasks reservations tables">
+      {% include "core/_panels.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -5,6 +5,7 @@
   <p class="text-body-secondary mb-4">Restaurant floor, tasks and bookings</p>
   <form method="post" novalidate>
     {% csrf_token %}
+    {% if locked_out %}<div class="alert alert-danger" role="alert">Too many failed sign-in attempts. Wait 15 minutes and try again.</div>{% endif %}
     {% include "partials/form_errors.html" %}
     {% include "partials/form_field.html" with field=form.username %}
     {% include "partials/form_field.html" with field=form.password %}

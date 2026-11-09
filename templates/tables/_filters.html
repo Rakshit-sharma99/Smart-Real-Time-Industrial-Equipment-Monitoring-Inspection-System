@@ -1,0 +1,10 @@
+{# Floor filters (section, status, guests). Expects floor_form; optional filter_action. #}
+<form class="filter-bar" method="get"{% if filter_action %} action="{{ filter_action }}"{% endif %}>
+  <div><label class="form-label" for="{{ floor_form.section.id_for_label }}">Section</label>{{ floor_form.section }}</div>
+  <div><label class="form-label" for="{{ floor_form.status.id_for_label }}">Status</label>{{ floor_form.status }}</div>
+  <div><label class="form-label" for="{{ floor_form.guests.id_for_label }}">Guests</label>{{ floor_form.guests }}</div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>
+    {% if floor_query %}<a class="btn btn-outline-secondary" href="{{ request.path }}">Reset</a>{% endif %}
+  </div>
+</form>

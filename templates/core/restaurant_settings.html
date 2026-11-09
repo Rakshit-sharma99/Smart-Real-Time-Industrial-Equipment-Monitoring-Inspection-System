@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="row"><div class="col-lg-8 col-xl-7">
+  <div class="card">
+    <div class="card-header">Restaurant</div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_errors.html" %}
+        <div class="row">
+          <div class="col-md-7">{% include "partials/form_field.html" with field=form.name %}</div>
+          <div class="col-md-5">{% include "partials/form_field.html" with field=form.address %}</div>
+          <div class="col-6 col-md-3">{% include "partials/form_field.html" with field=form.opens_at %}</div>
+          <div class="col-6 col-md-3">{% include "partials/form_field.html" with field=form.closes_at %}</div>
+          <div class="col-md-6">{% include "partials/form_field.html" with field=form.reservation_minutes %}</div>
+          <div class="col-md-6">{% include "partials/form_field.html" with field=form.reservation_hold_minutes %}</div>
+          <div class="col-md-6">{% include "partials/form_field.html" with field=form.cleaning_deadline_minutes %}</div>
+        </div>
+        <button class="btn btn-primary" type="submit">Save settings</button>
+      </form>
+    </div>
+  </div>
+</div></div>
+{% endblock %}
