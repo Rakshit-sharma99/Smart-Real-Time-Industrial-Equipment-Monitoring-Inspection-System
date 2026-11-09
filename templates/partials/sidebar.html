@@ -1,4 +1,4 @@
-<aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
+{% load ui %}<aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
   <div class="sidebar-inner">
     <div class="sidebar-brand">
       <span class="brand-mark" aria-hidden="true"><i class="bi bi-grid-3x3-gap-fill"></i></span>
@@ -15,7 +15,7 @@
     </nav>
     <div class="sidebar-footer">
       <span class="role-chip"><i class="bi bi-person-badge" aria-hidden="true"></i> {{ user_role_label|default:"No role" }}</span>
-      <span class="sidebar-note">{{ user.get_full_name|default:user.username }}</span>
+      <span class="sidebar-note">{{ user|person }}</span>
     </div>
   </div>
 </aside>

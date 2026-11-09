@@ -106,8 +106,8 @@ TEMPLATES = [
 ]
 
 # --- Database -----------------------------------------------------------------
-# WAL + IMMEDIATE transactions let the web server write while the simulator
-# reads, and serialise writers instead of failing with "database is locked".
+# WAL + IMMEDIATE transactions let several staff save at the same time and
+# serialise writers instead of failing with "database is locked".
 
 DATABASES = {
     "default": {

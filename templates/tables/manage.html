@@ -24,7 +24,7 @@
         <td class="fw-semibold"><a href="{{ t.get_absolute_url }}">{{ t.label }}</a></td>
         <td>{{ t.section.name }}</td>
         <td class="num">{{ t.capacity }}</td>
-        <td>{{ t.assigned_waiter.get_full_name|default:t.assigned_waiter.username|default:"—" }}</td>
+        <td>{{ t.assigned_waiter|person:"—" }}</td>
         <td>{% include "partials/status_badge.html" with status=t.status label=t.status_label %}</td>
         <td class="text-end text-nowrap">
           <a class="btn btn-sm btn-outline-secondary" href="{% url 'tables:edit' t.pk %}">Edit</a>

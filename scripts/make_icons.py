@@ -3,19 +3,17 @@ Generate the PWA icons (static/icons/icon-192.png and icon-512.png) with Pillow.
 
     python scripts/make_icons.py
 
-The icon is the app's "pulse" mark: a light-blue heartbeat line on the dark
-sidebar colour. Run once; the PNGs are committed to the repository.
+The icon is the app's mark: a 3x3 grid of table tiles on the charcoal sidebar
+colour, with the centre tile in the teal accent. Run once; the PNGs are committed.
 """
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
 BACKGROUND = (31, 35, 40)  # #1f2328 (sidebar)
-LINE = (96, 165, 250)  # #60a5fa (sidebar accent)
+TILE = (229, 231, 235)  # light tiles
+ACCENT = (15, 118, 110)  # #0f766e (teal accent)
 OUT_DIR = Path(__file__).resolve().parent.parent / "static" / "icons"
-
-# Pulse line as fractions of the icon size (x, y).
-PULSE = [(0.16, 0.54), (0.36, 0.54), (0.44, 0.34), (0.54, 0.72), (0.62, 0.46), (0.68, 0.54), (0.84, 0.54)]
 
 
 def make_icon(size):
@@ -25,11 +23,13 @@ def make_icon(size):
     draw = ImageDraw.Draw(image)
     # Full-bleed square so the icon also works as a "maskable" icon (safe zone = centre 80 %).
     draw.rectangle([0, 0, big, big], fill=BACKGROUND)
-    points = [(x * big, y * big) for x, y in PULSE]
-    draw.line(points, fill=LINE, width=int(big * 0.07), joint="curve")
-    radius = big * 0.035
-    for x, y in (points[0], points[-1]):
-        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=LINE)
+    cell, gap, margin = big * 0.16, big * 0.06, big * 0.22
+    for row in range(3):
+        for col in range(3):
+            x = margin + col * (cell + gap)
+            y = margin + row * (cell + gap)
+            colour = ACCENT if (row, col) == (1, 1) else TILE
+            draw.rounded_rectangle([x, y, x + cell, y + cell], radius=big * 0.03, fill=colour)
     return image.resize((size, size), Image.LANCZOS)
 
 

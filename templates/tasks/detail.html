@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -80,8 +81,8 @@
     <div class="card">
       <div class="card-header">Details</div>
       <div class="card-body"><dl class="detail-list">
-        <dt>Waiter</dt><dd>{{ task.assigned_to.get_full_name|default:task.assigned_to.username|default:"Unassigned" }}</dd>
-        <dt>Created</dt><dd>{{ task.created_at|date:"d M H:i" }} by {{ task.created_by.get_full_name|default:task.created_by.username }}</dd>
+        <dt>Waiter</dt><dd>{{ task.assigned_to|person:"Unassigned" }}</dd>
+        <dt>Created</dt><dd>{{ task.created_at|date:"d M H:i" }} by {{ task.created_by|person }}</dd>
         <dt>Assigned</dt><dd>{{ task.assigned_at|date:"d M H:i"|default:"—" }}</dd>
         <dt>Started</dt><dd>{{ task.started_at|date:"d M H:i"|default:"—" }}</dd>
       </dl></div>
@@ -90,7 +91,7 @@
       <div class="card-header">History</div>
       <div class="card-body"><ol class="timeline">
         {% for h in history %}
-        <li><span class="timeline-title">{{ h.get_action_display }}</span><span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.changed_by.get_full_name|default:h.changed_by.username|default:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
+        <li><span class="timeline-title">{{ h.get_action_display }}</span><span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.changed_by|person:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
         {% endfor %}
       </ol></div>
     </div>

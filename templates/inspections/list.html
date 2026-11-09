@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -25,7 +26,7 @@
         <td><a class="fw-semibold" href="{% url 'inspections:detail' i.pk %}">{{ i.reference }}</a></td>
         <td><a href="{{ i.table.get_absolute_url }}">{{ i.table.label }}</a></td>
         <td class="text-nowrap small">{{ i.created_at|date:"d M H:i" }}</td>
-        <td>{% if i.inspector %}{{ i.inspector.get_full_name|default:i.inspector.username }}{% else %}{{ i.get_source_display }}{% endif %}</td>
+        <td>{% if i.inspector %}{{ i.inspector|person }}{% else %}{{ i.get_source_display }}{% endif %}</td>
         <td>{{ i.customers_present|yesno:"Yes,No" }}</td>
         <td>{{ i.dishes_present|yesno:"Yes,No" }}</td>
         <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}{% if not i.applied %} <span class="small text-body-secondary">not applied</span>{% endif %}</td>

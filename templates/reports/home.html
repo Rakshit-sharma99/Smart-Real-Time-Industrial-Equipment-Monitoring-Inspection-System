@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="page-header">
+  <div><h2>Reports</h2><p class="subtitle">{{ report.start_date|date:"d M Y" }} – {{ report.end_date|date:"d M Y" }} · {{ report.days }} day{{ report.days|pluralize }}</p></div>
+  <a class="btn btn-primary" href="{% url 'reports:operations_pdf' %}?{{ query }}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Download PDF</a>
+</div>
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ form.start.id_for_label }}">From</label>{{ form.start }}</div>
+  <div><label class="form-label" for="{{ form.end.id_for_label }}">To</label>{{ form.end }}</div>
+  <div class="filter-actions"><button class="btn btn-primary" type="submit">Apply</button></div>
+  {% for error in form.end.errors %}<div class="w-100 invalid-feedback d-block">{{ error }}</div>{% endfor %}
+</form>
+<p class="small text-body-secondary"><span class="measure-tag measured">Measured</span> counted or timed from recorded events · <span class="measure-tag estimate">Estimate</span> calculated from measured data with a stated assumption.</p>
+
+<div class="row g-3">
+  <div class="col-xl-7">
+    <div class="card"><div class="card-header">Summary</div>
+      <div class="table-wrap"><div class="table-responsive"><table class="table align-middle">
+        <tbody>{% for f in report.figures %}
+          <tr><td>{{ f.label }} <span class="measure-tag {{ f.kind }}">{{ f.kind }}</span>{% if f.note %}<div class="small text-body-secondary">{{ f.note }}</div>{% endif %}</td>
+            <td class="num fw-semibold">{% if f.value is None %}—{% else %}{{ f.value }} {{ f.unit }}{% endif %}</td></tr>
+        {% endfor %}</tbody></table></div></div>
+    </div>
+    <div class="card"><div class="card-header">Daily summary <span class="small fw-normal text-body-secondary">week total: {{ week.seated }} parties · {{ week.guests }} guests · {{ week.tasks }} tasks</span></div>
+      <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
+        <thead><tr><th scope="col">Date</th><th scope="col" class="num">Parties</th><th scope="col" class="num">Guests</th><th scope="col" class="num">Tasks</th><th scope="col" class="num">Avg clean (min)</th><th scope="col" class="num">Inspections</th><th scope="col" class="num">Cancelled</th></tr></thead>
+        <tbody>{% for d in report.daily %}<tr><td class="text-nowrap">{{ d.date|date:"D d M" }}</td><td class="num">{{ d.seated }}</td><td class="num">{{ d.guests }}</td><td class="num">{{ d.tasks }}</td><td class="num">{{ d.avg_cleaning|default_if_none:"—" }}</td><td class="num">{{ d.inspections }}</td><td class="num">{{ d.cancelled }}</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="card"><div class="card-header">Peak occupancy <span class="measure-tag estimate">estimate</span></div>
+      <div class="card-body"><div class="chart-box"><canvas id="peakChart" role="img" aria-label="Average occupied tables per hour"></canvas></div>
+      <p class="small text-body-secondary mb-0 mt-2">Average number of occupied tables per hour of day, rebuilt from the table audit log.</p></div>
+    </div>
+    <div class="card"><div class="card-header">Waiter task statistics</div>
+      {% if report.waiters %}
+      <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
+        <thead><tr><th scope="col">Waiter</th><th scope="col" class="num">Assigned</th><th scope="col" class="num">Done</th><th scope="col" class="num">Avg min</th><th scope="col" class="num">Late</th></tr></thead>
+        <tbody>{% for w in report.waiters %}<tr><td>{{ w.name }}</td><td class="num">{{ w.assigned }}</td><td class="num">{{ w.completed }}</td><td class="num">{{ w.avg_minutes|default_if_none:"—" }}</td><td class="num">{{ w.late }}</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+      {% else %}<div class="card-body text-body-secondary">No tasks completed in this period.</div>{% endif %}
+    </div>
+    <div class="card"><div class="card-header">Table history PDF</div>
+      <div class="card-body"><form class="d-flex gap-2" id="tableHistoryForm"><label class="visually-hidden" for="tableHistoryPick">Table</label>
+        <select class="form-select" id="tableHistoryPick">{% for t in tables %}<option value="{% url 'reports:table_pdf' t.pk %}">{{ t.label }} · {{ t.section.name }}</option>{% endfor %}</select>
+        <button class="btn btn-outline-secondary" type="submit">PDF</button></form>
+      <p class="small text-body-secondary mb-0 mt-2">Inspections, audit log, tasks and bookings of one table (last 30 days).</p></div>
+    </div>
+  </div>
+</div>
+{{ peak_labels|json_script:"peak-labels" }}{{ peak_values|json_script:"peak-values" }}
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+<script>
+  new Chart(document.getElementById("peakChart"), {
+    type: "bar",
+    data: { labels: JSON.parse(document.getElementById("peak-labels").textContent),
+            datasets: [{ label: "Occupied tables (avg)", data: JSON.parse(document.getElementById("peak-values").textContent), backgroundColor: "#0f766e" }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+               scales: { x: { ticks: { maxTicksLimit: 12, color: "#6b7280" }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: "#6b7280" }, grid: { color: "#eeeeeb" } } } }
+  });
+  document.getElementById("tableHistoryForm").addEventListener("submit", function (e) { e.preventDefault(); window.location.href = document.getElementById("tableHistoryPick").value; });
+</script>
+{% endblock %}

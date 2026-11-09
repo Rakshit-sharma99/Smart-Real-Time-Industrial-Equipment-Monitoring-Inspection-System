@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="desk-grid">
+  <div>
+    <div data-live-fragment="{% url 'reservations:desk_board_fragment' %}?{{ floor_query }}" data-live-topics="tables tasks reservations">
+      {% include "reservations/_desk_board.html" %}
+    </div>
+  </div>
+  <div>
+    <div class="card" id="book">
+      <div class="card-header">New booking</div>
+      <div class="card-body">
+        <form method="get" action="{% url 'reservations:desk' %}#book" class="row g-2 mb-2">
+          <div class="col-6"><label class="form-label small" for="{{ search_form.date.id_for_label }}">Date</label>{{ search_form.date }}</div>
+          <div class="col-6"><label class="form-label small" for="{{ search_form.time.id_for_label }}">Time</label>{{ search_form.time }}</div>
+          <div class="col-4"><label class="form-label small" for="{{ search_form.guests.id_for_label }}">Guests</label>{{ search_form.guests }}</div>
+          <div class="col-8"><label class="form-label small" for="{{ search_form.section.id_for_label }}">Section</label>{{ search_form.section }}</div>
+          <div class="col-12"><button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Find a table</button></div>
+          {% for error in search_form.time.errors %}<div class="col-12 invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </form>
+
+        {% if suggestions is not None %}
+        <form method="post" action="{% url 'reservations:book' %}" novalidate data-once>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" with form=booking_form %}
+          {% for error in booking_form.table.errors %}<div class="alert alert-danger small">{{ error }}</div>{% endfor %}
+          <input type="hidden" name="date" value="{{ search_form.date.value|date:'Y-m-d'|default:search_form.date.value }}">
+          <input type="hidden" name="time" value="{{ search_form.time.value }}">
+          <input type="hidden" name="guests" value="{{ search_form.guests.value }}">
+          <input type="hidden" name="section" value="{{ search_form.section.value|default:'' }}">
+          <input type="hidden" name="duration" value="{{ search_form.duration.value|default:'' }}">
+          <p class="small text-body-secondary mb-2">{{ suggestions|length }} table{{ suggestions|pluralize }} free {{ search_form.time.value }}–{{ search_end|date:"H:i" }} for {{ search_form.guests.value }} guest{{ search_form.guests.value|pluralize }}</p>
+          {% if suggestions %}
+          <div class="suggest-list mb-3">
+            {% for t in suggestions %}
+            <label class="suggest-option"><input class="form-check-input" type="radio" name="table" value="{{ t.pk }}"{% if forloop.first %} checked{% endif %}>
+              <span><strong>{{ t.label }}</strong> · {{ t.capacity }} seats · {{ t.section.name }}<br><span class="small text-body-secondary">now: {{ t.status_label }}</span></span></label>
+            {% endfor %}
+          </div>
+          {% include "partials/form_field.html" with field=booking_form.customer_name %}
+          {% include "partials/form_field.html" with field=booking_form.phone %}
+          {% include "partials/form_field.html" with field=booking_form.remarks %}
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-calendar-check" aria-hidden="true"></i> Confirm booking</button>
+          {% else %}
+          <div class="alert alert-warning small mb-0">No suitable table is free at that time. Try another time or section.</div>
+          {% endif %}
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div data-live-fragment="{% url 'reservations:upcoming_fragment' %}" data-live-topics="reservations tables">
+      {% include "reservations/_upcoming.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

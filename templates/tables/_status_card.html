@@ -10,7 +10,7 @@
       <dt>Condition</dt><dd>{{ table.get_cleanliness_display }}</dd>
       {% if table.cleaning_in_progress %}<dt>Cleaning</dt><dd>In progress</dd>{% endif %}
       {% if table.is_blocked %}<dt>Blocked</dt><dd>{{ table.block_reason }}</dd>{% endif %}
-      <dt>Responsible waiter</dt><dd>{{ table.assigned_waiter.get_full_name|default:table.assigned_waiter.username|default:"Nobody" }}</dd>
+      <dt>Responsible waiter</dt><dd>{{ table.assigned_waiter|person:"Nobody" }}</dd>
       <dt>Last inspected</dt><dd>{% if table.last_inspected_at %}{{ table.last_inspected_at|date:"d M H:i" }} ({{ table.last_inspected_at|timesince }} ago){% else %}Never{% endif %}</dd>
       <dt>Last change</dt><dd>{{ table.status_updated_at|date:"d M H:i" }} ({{ table.status_updated_at|timesince }} ago)</dd>
       <dt>Next booking</dt><dd>{% if table.next_booking_at %}{{ table.next_booking_at|date:"d M H:i" }} · {{ table.next_booking_party }} guests{% else %}None{% endif %}</dd>

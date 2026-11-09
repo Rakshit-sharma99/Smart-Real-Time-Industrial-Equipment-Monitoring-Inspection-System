@@ -22,10 +22,15 @@ Status = Reservation.Status
 
 
 def upcoming_context(request):
-    """Guests expected in the next hours (plus late ones) and tables currently seated from a booking."""
+    """Walk-in form (Ready tables right now), guests expected in the next hours and seated bookings. Refreshed live."""
     now = timezone.now()
     bookings = Reservation.objects.for_restaurant(request.restaurant).select_related("table")
+    ready_now = services.available_tables(
+        request.restaurant, start=now, end=services.end_for(request.restaurant, now), party_size=1, walk_in=True,
+    )
     return {
+        "ready_now": ready_now,
+        "walk_in_form": WalkInForm(restaurant=request.restaurant, ready_tables=ready_now, prefix="walkin"),
         "upcoming": bookings.filter(status__in=Reservation.WAITING_STATUSES, end_at__gt=now,
                                     start_at__lte=now + timedelta(hours=6)).order_by("start_at"),
         "seated": bookings.filter(status=Status.SEATED).order_by("seated_at"),
@@ -45,21 +50,15 @@ def search_context(request, form):
     return {"suggestions": suggestions, "search_end": end}
 
 
-def desk_context(request, booking_form=None, walk_in_form=None):
+def desk_context(request, booking_form=None):
     now = timezone.localtime()
     search_data = request.POST if booking_form is not None else (request.GET if "guests" in request.GET else None)
     search = BookingSearchForm(search_data, restaurant=request.restaurant, initial={
         "date": now.date(), "time": (now + timedelta(minutes=30)).strftime("%H:00"), "guests": 2,
     })
-    ready_now = services.available_tables(
-        request.restaurant, start=timezone.now(), end=services.end_for(request.restaurant, timezone.now()),
-        party_size=1, walk_in=True,
-    )
     return {
         "search_form": search,
         "booking_form": booking_form or BookingForm(restaurant=request.restaurant, initial=search.initial),
-        "walk_in_form": walk_in_form or WalkInForm(restaurant=request.restaurant, ready_tables=ready_now),
-        "ready_now": ready_now,
         **search_context(request, search),
         **upcoming_context(request),
         **floor_context(request),
@@ -108,7 +107,7 @@ def book(request):
 @require_POST
 def walk_in(request):
     # The service re-checks that the chosen table is Ready right now.
-    form = WalkInForm(request.POST, restaurant=request.restaurant)
+    form = WalkInForm(request.POST, restaurant=request.restaurant, prefix="walkin")
     if form.is_valid():
         data = form.cleaned_data
         try:

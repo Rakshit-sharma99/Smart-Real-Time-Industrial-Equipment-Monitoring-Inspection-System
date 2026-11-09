@@ -70,3 +70,19 @@ def humanize_status(value):
 def lookup(mapping, key):
     """{{ my_dict|lookup:key }} - dictionary access with a variable key."""
     return mapping.get(key, "") if mapping else ""
+
+
+@register.filter
+def person(user, fallback="—"):
+    """Display name of a user that may be None: {{ task.assigned_to|person:"Unassigned" }}."""
+    if user is None:
+        return fallback
+    return user.get_full_name() or user.username
+
+
+@register.filter
+def person_short(user, fallback="—"):
+    """First name (or username) of a user that may be None."""
+    if user is None:
+        return fallback
+    return user.first_name or user.username

@@ -97,7 +97,7 @@
             <thead><tr><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
             <tbody>{% for i in inspections %}
               <tr><td class="text-nowrap">{% if is_manager_user or i.inspector_id == user.pk %}<a href="{% url 'inspections:detail' i.pk %}">{{ i.created_at|date:"d M H:i" }}</a>{% else %}{{ i.created_at|date:"d M H:i" }}{% endif %}</td>
-                <td>{% if i.inspector %}{{ i.inspector.get_short_name|default:i.inspector.username }}{% else %}{{ i.get_source_display }}{% endif %}</td>
+                <td>{% if i.inspector %}{{ i.inspector|person_short }}{% else %}{{ i.get_source_display }}{% endif %}</td>
                 <td>{{ i.customers_present|yesno:"Yes,No" }}</td><td>{{ i.dishes_present|yesno:"Yes,No" }}</td>
                 <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}</td></tr>
             {% endfor %}</tbody>
@@ -109,7 +109,7 @@
           <div class="card-body"><ol class="timeline">
             {% for h in history %}
             <li><span class="timeline-title">{% if h.from_status and h.from_status != h.to_status %}{{ h.get_from_status_display }} → {% endif %}{{ h.get_to_status_display }}</span>
-              <span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.get_source_display }}{% if h.changed_by %} · {{ h.changed_by.get_full_name|default:h.changed_by.username }}{% endif %}</span>
+              <span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.get_source_display }}{% if h.changed_by %} · {{ h.changed_by|person }}{% endif %}</span>
               {% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
             {% endfor %}
           </ol></div>
@@ -121,7 +121,7 @@
             <thead><tr><th scope="col">Task</th><th scope="col">Type</th><th scope="col">Waiter</th><th scope="col">Status</th></tr></thead>
             <tbody>{% for t in tasks %}
               <tr><td>{% if is_manager_user or t.assigned_to_id == user.pk %}<a href="{% url 'tasks:detail' t.pk %}">{{ t.task_code }}</a>{% else %}{{ t.task_code }}{% endif %}</td><td>{{ t.get_task_type_display }}</td>
-                <td>{{ t.assigned_to.get_short_name|default:t.assigned_to.username|default:"—" }}</td>
+                <td>{{ t.assigned_to|person_short:"—" }}</td>
                 <td>{% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}</td></tr>
             {% endfor %}</tbody>
           </table></div></div>

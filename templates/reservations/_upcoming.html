@@ -1,0 +1,47 @@
+{# Walk-in form, expected guests and seated bookings. Rendered inside a live fragment. #}
+    <div class="card">
+      <div class="card-header">Walk-in</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'reservations:walk_in' %}" class="row g-2" novalidate>
+          {% csrf_token %}
+          <div class="col-12"><label class="form-label small" for="{{ walk_in_form.table.id_for_label }}">Table</label>{{ walk_in_form.table }}</div>
+          <div class="col-4"><label class="form-label small" for="{{ walk_in_form.guests.id_for_label }}">Guests</label>{{ walk_in_form.guests }}</div>
+          <div class="col-8"><label class="form-label small" for="{{ walk_in_form.customer_name.id_for_label }}">Name (optional)</label>{{ walk_in_form.customer_name }}</div>
+          <div class="col-12"><button class="btn btn-dark w-100" type="submit"{% if not ready_now %} disabled{% endif %}><i class="bi bi-door-open" aria-hidden="true"></i> Seat walk-in now</button></div>
+        </form>
+      </div>
+    </div>
+<div class="card">
+  <div class="card-header">Expected guests <span class="small text-body-secondary fw-normal">next 6 h{% if later_count %} · {{ later_count }} later{% endif %}</span></div>
+  {% for r in upcoming %}
+  <div class="booking-row">
+    <div class="booking-time">{{ r.start_at|date:"H:i" }}</div>
+    <div class="booking-main">
+      <div class="fw-semibold text-truncate"><a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a> · {{ r.party_size }} <i class="bi bi-person" aria-hidden="true"></i></div>
+      <div class="small text-body-secondary">{{ r.table.label }} · {{ r.get_status_display }}{% if r.is_late %} · <span class="text-danger fw-semibold">late</span>{% endif %}</div>
+    </div>
+    <div class="booking-actions">
+      {% if r.status == "PENDING" or r.status == "CONFIRMED" %}
+      <form method="post" action="{% url 'reservations:change_status' r.pk %}">{% csrf_token %}<input type="hidden" name="to_status" value="ARRIVED"><input type="hidden" name="next" value="{% url 'reservations:desk' %}"><button class="btn btn-sm btn-outline-secondary" type="submit">Arrived</button></form>
+      {% endif %}
+      {% if r.status != "SEATED" %}
+      <form method="post" action="{% url 'reservations:change_status' r.pk %}">{% csrf_token %}<input type="hidden" name="to_status" value="SEATED"><input type="hidden" name="next" value="{% url 'reservations:desk' %}"><button class="btn btn-sm btn-primary" type="submit">Seat</button></form>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="small text-body-secondary px-3 py-3 mb-0">No bookings in the next 6 hours.</p>
+  {% endfor %}
+</div>
+<div class="card">
+  <div class="card-header">Seated now ({{ seated|length }})</div>
+  {% for r in seated %}
+  <div class="booking-row">
+    <div class="booking-time">{{ r.table.label }}</div>
+    <div class="booking-main"><div class="fw-semibold text-truncate"><a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a> · {{ r.party_size }} <i class="bi bi-person" aria-hidden="true"></i></div><div class="small text-body-secondary">since {{ r.seated_at|date:"H:i" }}</div></div>
+    <form method="post" action="{% url 'reservations:change_status' r.pk %}" data-confirm="Guests at {{ r.table.label }} have left? The table will need clearing." data-confirm-button="Guests left" data-confirm-tone="primary">{% csrf_token %}<input type="hidden" name="to_status" value="COMPLETED"><input type="hidden" name="next" value="{% url 'reservations:desk' %}"><button class="btn btn-sm btn-outline-secondary" type="submit">Left</button></form>
+  </div>
+  {% empty %}
+  <p class="small text-body-secondary px-3 py-3 mb-0">No seated bookings.</p>
+  {% endfor %}
+</div>

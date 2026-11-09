@@ -12,12 +12,11 @@
       "presentation": { "panel": "dedicated", "reveal": "always" }
     },
     {
-      "label": "Run simulator",
+      "label": "Seed demo data",
       "type": "process",
       "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-      "args": ["manage.py", "simulate_sensors"],
+      "args": ["manage.py", "seed_demo", "--reset"],
       "options": { "cwd": "${workspaceFolder}" },
-      "isBackground": true,
       "problemMatcher": [],
       "presentation": { "panel": "dedicated", "reveal": "always" }
     },

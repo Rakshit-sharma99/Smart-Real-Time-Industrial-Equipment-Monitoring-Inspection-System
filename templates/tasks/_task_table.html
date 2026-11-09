@@ -1,4 +1,4 @@
-{# Manager task table + waiter progress. Rendered inside a live fragment. #}
+{% load ui %}{# Manager task table + waiter progress. Rendered inside a live fragment. #}
 <div class="row g-3">
   <div class="col-xl-8">
     {% if tasks %}
@@ -13,7 +13,7 @@
             <td>{{ t.get_task_type_display }}</td>
             <td>{% include "partials/status_badge.html" with status=t.priority label=t.get_priority_display %}</td>
             <td>{% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}</td>
-            <td>{{ t.assigned_to.get_full_name|default:t.assigned_to.username|default:"—" }}</td>
+            <td>{{ t.assigned_to|person:"—" }}</td>
             <td class="text-nowrap small{% if t.is_overdue %} text-danger fw-semibold{% endif %}">{% if t.due_at %}{{ t.due_at|date:"H:i" }}{% if t.is_overdue %} overdue{% endif %}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
@@ -30,7 +30,7 @@
       <div class="card-header">Waiter progress</div>
       <ul class="list-group list-group-flush">
         {% for w in waiter_progress %}
-        <li class="list-group-item d-flex justify-content-between"><span>{{ w.get_full_name|default:w.username }}</span><span class="small text-body-secondary">{{ w.active }} active · {{ w.done_today }} done today</span></li>
+        <li class="list-group-item d-flex justify-content-between"><span>{{ w|person }}</span><span class="small text-body-secondary">{{ w.active }} active · {{ w.done_today }} done today</span></li>
         {% empty %}<li class="list-group-item text-body-secondary">No waiters yet.</li>{% endfor %}
       </ul>
     </div>

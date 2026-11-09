@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="d-flex flex-wrap align-items-center gap-2"><h2>{{ reservation.reference }}</h2>{% include "partials/status_badge.html" with status=reservation.status label=reservation.get_status_display %}</div>
+    <p class="subtitle">{{ reservation.customer_name }} · {{ reservation.party_size }} guests · <a href="{{ reservation.table.get_absolute_url }}">{{ reservation.table.label }}</a> · {{ reservation.start_at|date:"D d M, H:i" }}–{{ reservation.end_at|date:"H:i" }}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'reservations:list' %}">All reservations</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">Details</div><div class="card-body"><dl class="detail-list">
+      <dt>Phone</dt><dd>{{ reservation.phone|default:"—" }}</dd>
+      <dt>Source</dt><dd>{{ reservation.get_source_display }}</dd>
+      <dt>Booked by</dt><dd>{{ reservation.created_by|person }}, {{ reservation.created_at|date:"d M H:i" }}</dd>
+      {% if reservation.arrived_at %}<dt>Arrived</dt><dd>{{ reservation.arrived_at|date:"d M H:i" }}</dd>{% endif %}
+      {% if reservation.seated_at %}<dt>Seated</dt><dd>{{ reservation.seated_at|date:"d M H:i" }}{% if reservation.waiting_minutes is not None %} · waited {{ reservation.waiting_minutes }} min{% endif %}</dd>{% endif %}
+      {% if reservation.completed_at %}<dt>Left</dt><dd>{{ reservation.completed_at|date:"d M H:i" }}</dd>{% endif %}
+      {% if reservation.remarks %}<dt>Remarks</dt><dd>{{ reservation.remarks|linebreaksbr }}</dd>{% endif %}
+    </dl></div></div>
+    {% if next_statuses %}
+    <div class="card"><div class="card-header">Update</div><div class="card-body d-flex flex-wrap gap-2">
+      {% for status in next_statuses %}
+      <form method="post" action="{% url 'reservations:change_status' reservation.pk %}"{% if status == "CANCELLED" or status == "NO_SHOW" %} data-confirm="Mark {{ reservation.reference }} as {{ status|lower }}? The table slot is released." data-confirm-button="Yes"{% endif %}>
+        {% csrf_token %}<input type="hidden" name="to_status" value="{{ status }}">
+        <button class="btn {% if status == 'SEATED' %}btn-primary{% elif status == 'CANCELLED' or status == 'NO_SHOW' %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}" type="submit">{% if status == "COMPLETED" %}Guests left{% else %}{{ status|title|cut:"_" }}{% endif %}</button>
+      </form>
+      {% endfor %}
+    </div></div>
+    {% endif %}
+  </div>
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">History</div><div class="card-body"><ol class="timeline">
+      {% for h in history %}<li><span class="timeline-title">{% if h.from_status %}{{ h.get_from_status_display }} → {% endif %}{{ h.get_to_status_display }}</span><span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.changed_by|person:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>{% endfor %}
+    </ol></div></div>
+  </div>
+</div>
+{% endblock %}

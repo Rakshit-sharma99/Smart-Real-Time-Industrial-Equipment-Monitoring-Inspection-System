@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><h2>Reservations</h2><p class="subtitle">{{ page_obj.paginator.count }} shown</p></div>
+  <a class="btn btn-primary" href="{% url 'reservations:desk' %}#book"><i class="bi bi-calendar-plus" aria-hidden="true"></i> New booking</a>
+</div>
+<form class="filter-bar" method="get">
+  <div><label class="form-label" for="{{ filter_form.q.id_for_label }}">Search</label>{{ filter_form.q }}</div>
+  <div><label class="form-label" for="{{ filter_form.date.id_for_label }}">Date</label>{{ filter_form.date }}</div>
+  <div><label class="form-label" for="{{ filter_form.status.id_for_label }}">Status</label>{{ filter_form.status }}</div>
+  <div class="filter-actions"><button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>{% if request.GET %}<a class="btn btn-outline-secondary" href="{% url 'reservations:list' %}">Reset</a>{% endif %}</div>
+</form>
+<div data-live-fragment="{% url 'reservations:list_fragment' %}?{{ request.GET.urlencode }}" data-live-topics="reservations">
+  {% include "reservations/_table.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{# Availability strip + floor for the desk. Rendered inside a live fragment. #}
+<div class="avail-strip">
+  <div class="avail-box" style="--tile-color: var(--st-ready)"><div class="n">{{ floor_summary.ready }}</div><div class="l">Ready · {{ floor_summary.seats_ready }} seats</div></div>
+  <div class="avail-box" style="--tile-color: var(--st-occupied)"><div class="n">{{ floor_summary.occupied }}</div><div class="l">Occupied</div></div>
+  <div class="avail-box" style="--tile-color: var(--st-reserved)"><div class="n">{{ floor_summary.reserved }}</div><div class="l">Reserved</div></div>
+  <div class="avail-box" style="--tile-color: var(--st-progress)"><div class="n">{{ floor_summary.needs_cleaning|add:floor_summary.cleaning }}</div><div class="l">Being cleaned</div></div>
+  <div class="avail-box" style="--tile-color: var(--st-blocked)"><div class="n">{{ floor_summary.blocked }}</div><div class="l">Unavailable</div></div>
+</div>
+{% include "tables/_floor.html" %}

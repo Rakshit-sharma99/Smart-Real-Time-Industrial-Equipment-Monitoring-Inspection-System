@@ -1,0 +1,23 @@
+{# Reservation table. Rendered inside a live fragment. #}
+{% if reservations %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col">Booking</th><th scope="col">When</th><th scope="col">Customer</th><th scope="col">Guests</th><th scope="col">Table</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+      {% for r in reservations %}
+      <tr>
+        <td><a class="fw-semibold" href="{% url 'reservations:detail' r.pk %}">{{ r.reference }}</a>{% if r.source == "WALK_IN" %} <span class="badge text-bg-light border fw-normal">walk-in</span>{% endif %}</td>
+        <td class="text-nowrap">{{ r.start_at|date:"d M H:i" }}–{{ r.end_at|date:"H:i" }}</td>
+        <td>{{ r.customer_name }}<div class="small text-body-secondary">{{ r.phone }}</div></td>
+        <td>{{ r.party_size }}</td>
+        <td><a href="{{ r.table.get_absolute_url }}">{{ r.table.label }}</a></td>
+        <td>{% include "partials/status_badge.html" with status=r.status label=r.get_status_display %}{% if r.is_late %} <span class="small text-danger">late</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% include "partials/pagination.html" %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-calendar-event" title="No reservations match" %}
+{% endif %}

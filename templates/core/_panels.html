@@ -1,4 +1,4 @@
-{# Right-hand panels of the manager dashboard. Rendered inside a live fragment. #}
+{% load ui %}{# Right-hand panels of the manager dashboard. Rendered inside a live fragment. #}
 <div class="card">
   <div class="card-header">Waiter tasks <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:list' %}">All tasks</a></div>
   {% if open_tasks %}
@@ -7,7 +7,7 @@
     <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
       <div class="min-w-0">
         <a class="fw-semibold" href="{% url 'tasks:detail' t.pk %}">{{ t.table.label }}</a> <span class="text-body-secondary">· {{ t.get_task_type_display }}</span>
-        <div class="small text-body-secondary">{{ t.assigned_to.get_full_name|default:t.assigned_to.username|default:"Unassigned" }}{% if t.due_at %} · due {{ t.due_at|date:"H:i" }}{% if t.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</div>
+        <div class="small text-body-secondary">{{ t.assigned_to|person:"Unassigned" }}{% if t.due_at %} · due {{ t.due_at|date:"H:i" }}{% if t.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</div>
       </div>
       {% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}
     </li>
@@ -42,7 +42,7 @@
     {% for i in recent_inspections %}
     <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
       <div class="min-w-0"><a class="fw-semibold" href="{% url 'inspections:detail' i.pk %}">{{ i.table.label }}</a>
-        <span class="small text-body-secondary">· {% if i.inspector %}{{ i.inspector.get_short_name|default:i.inspector.username }}{% else %}{{ i.get_source_display }}{% endif %} · {{ i.created_at|timesince }} ago</span></div>
+        <span class="small text-body-secondary">· {% if i.inspector %}{{ i.inspector|person_short }}{% else %}{{ i.get_source_display }}{% endif %} · {{ i.created_at|timesince }} ago</span></div>
       {% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}
     </li>
     {% endfor %}

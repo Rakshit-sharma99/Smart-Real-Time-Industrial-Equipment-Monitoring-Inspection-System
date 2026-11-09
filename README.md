@@ -1,29 +1,24 @@
-# Smart-Real-Time-Industrial-Equipment-Monitoring-Inspection-System
+# RestaurantSpy
 
-**EquipWatch**: a Django web app for monitoring industrial equipment and running QR-based inspections.
+**Smart Restaurant Operations & Table Management System**, a Django web app that monitors the condition of every dining table, coordinates waiters, and keeps the booking desk in sync with the floor in real time.
 
-An Admin registers machines, and each machine gets a QR label. A **sensor simulator** streams temperature, vibration and pressure readings. The monitoring engine checks every reading against that machine's limits, updates its health and raises deduplicated alerts. Dashboards update live over **WebSockets**. Inspectors scan a machine's QR code, complete a checklist with photos, and failed items become defects. Admins turn defects or alerts into maintenance tasks and track them to completion. Inspection and equipment-health reports download as **PDFs**.
+A customer leaves Table 12. A waiter (or a camera service) records that the table is empty but still has dishes on it, so it shows **Vacant – needs clearing** on every screen at once. The manager assigns a cleaning task; the waiter sees it on their phone, starts it (the table shows **Cleaning in progress**), clears and cleans, and confirms the table check. Only when the check says the table is clear, clean, arranged and ready does it become **Ready**, and at that moment the receptionist at the entrance sees Table 12 free and can seat the next guests or book it.
 
-> All sensor data is **simulated**. There is no hardware, and alerts are demo alerts, not real emergencies.
+> RestaurantSpy does **not** include a computer-vision model. Table detection by camera is an **integration point** (`POST /api/v1/detections/`) that an external vision service could call. Manual inspection is the fully working path.
+
+This repository's `main` branch holds the previous product (EquipWatch, an equipment-monitoring system). RestaurantSpy was built from it on the `restaurantspy` branch; `docs/TRANSFORMATION.md` records the audit and what was reused.
 
 | | |
 |---|---|
 | Stack | Python 3.11–3.13, Django 5.2 LTS, Django REST Framework, Channels 4 + Daphne 4, SQLite (WAL), ReportLab, Pillow, qrcode |
 | Front end | Server-rendered Django templates, Bootstrap 5.3, Bootstrap Icons, Chart.js 4, html5-qrcode 2.3.8 (CDN, pinned, with SRI) |
 | Runs on | Windows from VS Code, with no paid services, Redis, Docker or Node |
-| College / team | _(set `COLLEGE_NAME` and `TEAM_NAMES` in `.env`; they appear in the PDF footer)_ |
 
 ---
 
-## 1. Prerequisites
+## 1. Setup
 
-- **Python 3.11, 3.12 or 3.13**. Check with `py --version`.
-- **VS Code** with the **Python** extension (Microsoft).
-- Internet access when pages load, because Bootstrap, Chart.js and html5-qrcode come from a CDN.
-
-## 2. Setup (first time)
-
-Open the project folder in VS Code, then open a terminal (**Terminal → New Terminal**):
+Prerequisites: Python 3.11–3.13 (`py --version`), VS Code with the Python extension, internet access for the CDN files.
 
 ```powershell
 py -m venv .venv
@@ -34,231 +29,134 @@ python manage.py migrate
 python manage.py seed_demo
 ```
 
-Optional, for the Django admin at `/admin/` (superusers only):
+Edit `.env`: set `SECRET_KEY` (generate with `python -c "import secrets; print(secrets.token_urlsafe(50))"`), `DETECTION_API_TOKEN` (any secret), and `SITE_BASE_URL` / `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` with your LAN IP if phones will use the app. The database file is `restaurantspy.sqlite3` (so it never collides with the `main` branch's `db.sqlite3`).
+
+Optional: `python manage.py createsuperuser` for `/admin/` (superusers only).
+
+## 2. Running
 
 ```powershell
-python manage.py createsuperuser
+python manage.py runserver        # or the VS Code task "Run server"
 ```
 
-`seed_demo` creates demo data. It only runs when `DEBUG=True`. Use `python manage.py seed_demo --reset` to wipe the demo data and start again. It creates:
+Open <http://127.0.0.1:8000>. Ctrl+C stops it. There is no second process to run: the server handles pages, the API and WebSockets (Daphne).
 
-| What | Details |
-|---|---|
-| Users | `admin_demo` (Admin), `inspector_demo` and `inspector2_demo` (Inspectors). Their password is `DEMO_PASSWORD` from `.env` (default `EquipWatch@2026`). |
-| Equipment | 6 machines (EQ-001 to EQ-006). EQ-003 is in **DRIFT** mode and EQ-006 is **deactivated**. |
-| Readings | 24 hours of history at 5-minute steps, so the charts are not empty |
-| Inspections | 2 checklist templates, 2 inspections assigned to `inspector_demo`, and 1 submitted inspection with a failure and a defect |
-| Maintenance | 1 open task |
+### Demo accounts (`python manage.py seed_demo`, DEBUG only; `--reset` wipes and recreates)
 
-Edit `.env` before going further:
+Restaurant **The Copper Fork**: 3 sections, 20 tables, a live floor, today's bookings and a week of history. Password for all: `DEMO_PASSWORD` from `.env` (default `RestaurantSpy@2026`).
 
-- `SECRET_KEY`: any long random string. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(50))"`.
-- `SIMULATOR_TOKEN`: a shared secret. The server and the simulator read the same `.env`.
-- `SITE_BASE_URL`: the address encoded in QR labels. Use your PC's LAN IP if phones will scan them.
-- `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`: add your LAN IP to test from a phone.
+| Account | Role | Starts on |
+|---|---|---|
+| `manager_demo` | Manager | Manager dashboard |
+| `waiter_demo`, `waiter2_demo`, `waiter3_demo`, `waiter4_demo` | Waiters (each responsible for 5 tables; T11–T15 belong to `waiter3_demo`) | My tasks |
+| `reception_demo`, `reception2_demo` | Receptionists | Booking desk |
 
-## 3. Running
+## 3. The three roles
 
-You need **two terminals**: one for the web server and one for the simulator.
-
-| | Command | VS Code task (**Terminal → Run Task…**) | Script |
+| Action | Manager | Waiter | Receptionist |
 |---|---|---|---|
-| Web server (HTTP + WebSockets) | `python manage.py runserver` | **Run server** | `scripts\start_server.bat` |
-| Sensor simulator | `python manage.py simulate_sensors` | **Run simulator** | `scripts\start_simulator.bat` |
-| Tests | `python manage.py test` | **Run tests** | |
+| Floor view, table details, notifications, own profile | ✓ | ✓ | ✓ |
+| Create / edit / deactivate / block tables, override a table's state (audited), assign responsible waiters | ✓ | ✗ | ✗ |
+| Inspect a table | any table | own tables, unassigned tables, tables of own tasks | ✗ |
+| Create, assign, reassign, re-prioritise waiter tasks | ✓ | ✗ | ✗ |
+| Accept / start / progress-note / complete tasks | ✓ | own tasks | ✗ |
+| See customer names and phone numbers | ✓ | ✗ | ✓ |
+| Booking desk, create / update / cancel reservations, seat walk-ins | ✓ | ✗ | ✓ |
+| Staff management, restaurant settings, sections, reports and PDFs | ✓ | ✗ | ✗ |
+| QR codes: view / download / print | ✓ / ✓ / ✓ | view | view |
 
-1. Start the server, then open <http://127.0.0.1:8000> and sign in.
-2. Start the simulator in a second terminal. Readings start arriving every 5 seconds. Machines show **OFFLINE** while the simulator is not running.
-3. Stop either one with **Ctrl+C** in its terminal. The simulator prints a summary when it exits. It never starts on its own.
+Every rule is enforced on the server (role checks plus restaurant scoping on every query). Hidden buttons are a convenience, not the protection: a waiter opening `/tasks/` gets **403**, another restaurant's table gives **404**.
 
-Simulator options:
+## 4. Table state
+
+A table stores only facts: `is_occupied`, `cleanliness` (clean / dishes on table / needs cleaning), `is_blocked`, `is_active`. The displayed status is computed, in this priority order:
+
+`Blocked` → `Occupied` → `Cleaning in progress` (a task is in progress) → `Vacant – needs clearing` → `Cleaning required` → `Reserved` (a booking holds the table now) → `Ready`
+
+A vacant table with dishes on it is never Ready. Every change goes through `tables.services`, which locks the row, writes a `TableStatusHistory` audit row, sends notifications and publishes a real-time event after the transaction commits.
+
+**Inspections** answer seven questions (customers seated, plates, glasses, leftovers, surface clean, chairs arranged, ready for next). Contradictions are rejected (a table cannot be "ready" with plates on it). Completing a waiter task records the same check, so the table becomes Ready only when the waiter confirms it really is.
+
+**Camera detections** (`POST /api/v1/detections/`, token auth) can report people and dishes. They are stored always and applied only above `DETECTION_MIN_CONFIDENCE` (0.6). A camera can never declare a table clean: dishes gone moves the table to *Cleaning required*, and a person confirms Ready. Try it with the server running:
 
 ```powershell
-python manage.py simulate_sensors --interval 3              # seconds between batches (2-60)
-python manage.py simulate_sensors --equipment EQ-001        # one machine only
-python manage.py simulate_sensors --once                    # send one batch and exit
-python manage.py simulate_sensors --url http://127.0.0.1:8765   # server on another port
+python manage.py send_test_detection --table 4 --people 0 --dishes 1
 ```
 
-If the server is down, the simulator prints a clear message and retries with back-off instead of crashing.
+**Reservations** occupy a time slot `[start, end)` on one table (default 90 minutes). Two active bookings of the same table can never overlap; the check and the insert run in one locked transaction, and the API answers **409** on a conflict. A future booking does not block the table now: it shows as *Reserved* only during the hold window (30 minutes before the start, until the end). Statuses: Pending → Confirmed → Arrived → Seated → Completed, plus Cancelled and No show. Seating needs a clean table; "Guests left" marks it for clearing. An inspection that finds the table empty also completes its seated booking.
 
-### Demo controls
+**Waiter tasks** (`WT-0001`…): Open → Assigned → In progress → Completed, with accept, progress notes, reassignment and priority changes; every action is logged in `WaiterTaskHistory`. Deadlines default to the restaurant's cleaning deadline; overdue tasks notify managers and the waiter once (checked when dashboards refresh, or via `python manage.py check_overdue_tasks` from a scheduler).
 
-Go to **Settings → Simulator** (Admin). You can change the interval and noise, and set a **mode per machine**:
+## 5. Real-time synchronisation
 
-| Mode | Effect on the machine's *primary* metric (the other two stay normal) |
-|---|---|
-| Normal | random walk between 40 % and 80 % of the warning limit |
-| Drift | climbs slowly to just above critical, then resets |
-| Force warning | between the warning and critical limits |
-| Force critical | 5–20 % above the critical limit |
-| Offline | sends nothing (the machine shows OFFLINE after 30 s) |
+Pages mark the parts that must stay current as *live fragments*. A WebSocket (`ws/live/`, session-authenticated, scoped to the user's restaurant, role and person) delivers small events such as `{"type": "table.changed", "topics": ["tables"]}`; the browser then re-fetches those fragments from ordinary permission-checked views, so the socket never carries customer data to someone who may not see it. Events carry an id, so duplicates are dropped, and an older response never overwrites a newer one.
 
-Primary metric by type: compressor and pump → pressure; CNC and conveyor → vibration; boiler, cooling tower and other → temperature.
+If the socket fails, the fragments are polled every 10 s and the top bar shows **Live updates: polling**; the socket is retried with back-off. Test it with DevTools → Network → WS, or add `?transport=poll` to any URL, or run `RestaurantSpy.live.close()` in the console.
 
-## 4. Testing the live features
+## 6. QR codes
 
-**WebSockets.** Open the Overview, then DevTools (F12) → **Network** → **WS** → `ws/dashboard/` → **Messages**. While the simulator runs you will see `reading` messages, and `alert` messages when a limit is crossed. The top bar dot is green and says **Live**.
+Every table has a QR code encoding `{SITE_BASE_URL}/t/<public uuid>/`. Opening it requires a staff login of the same restaurant: staff who may inspect go straight to the inspection form, others to the table page. Holding a QR code grants nothing. Managers download single PNGs or print a sheet (**Tables & QR codes**). The scanner page (**Scan table QR**) uses the camera, a photo of the code, or the typed table number.
 
-**Polling fallback.** Add `?transport=poll` to any URL, or run `EquipWatch.live.close()` in the DevTools console. The dot turns amber and says **Live updates: polling**. The page then refreshes from `/api/v1/dashboard/summary/` and `/api/v1/equipment/status/` every 10 s, and keeps retrying the WebSocket.
+Camera notes: the live camera works on `http://localhost` and `https://`. On a phone using the PC's LAN address (plain http), browsers block the camera; use "Scan from photo" or type the table number.
 
-**QR codes.**
+## 7. Reports
 
-- **Generate:** every equipment page shows its QR code. Admins can **Download PNG** or **Print label**. On the Equipment list, tick several machines and choose **Print selected labels** for a sheet.
-- **Scan:** open **QR Scanner** in the sidebar. Use the camera, **Scan from image file**, or **Type a code** (e.g. `EQ-001`). A valid label opens that machine (sign-in required). Anything else shows "Not an equipment QR" or "Unknown equipment".
-- **What a QR holds:** `{SITE_BASE_URL}/e/<public uuid>/`. The QR alone grants nothing, because the page still needs a login.
+**Reports** (managers) shows a 1–31 day period: parties and guests seated, walk-ins, cancellations, no-shows, average reservation waiting time, cleaning tasks, average cleaning and response time, late tasks, inspections, per-waiter statistics, a daily summary with weekly totals, peak occupancy per hour and inspections by source. Each figure is tagged **Measured** (timed or counted from recorded events) or **Estimate** (table utilisation, with its assumption printed). PDF export: the operations report and a per-table history (inspections, audit log, tasks, bookings).
 
-**Camera notes.**
-
-- The camera works on `http://localhost` / `http://127.0.0.1` and on any `https://` site.
-- On a phone using your PC's LAN address (`http://192.168.x.x:8000`), plain http is **not** a secure context, so browsers block the camera. Use **Scan from image file**, which opens the phone camera as a file picker, or **Type a code**, or serve the app over HTTPS.
-- If the camera is blocked or used by another app, the page says so and falls back to the other two options.
-
-**PDF reports.**
-
-- **Inspection report:** from **Reports**, or the **PDF report** button on an inspection.
-- **Equipment health report:** the **Health report** button on an equipment page, or the Reports page form (1–90 days).
-- Inspectors can only download their own inspection reports. Another user's ID gives 404.
-
-**Install as an app (PWA).** In Chrome or Edge, use the install icon in the address bar. The service worker caches only static files (CSS, JS, icons) and an offline page. Pages and API calls always come from the server.
-
-**Tests.** Run `python manage.py test`. The suite covers 196 cases: roles, thresholds, the alert engine, ingest, WebSockets, inspections, photos, QR, maintenance, PDFs and PWA.
-
-## 5. Acceptance walkthrough (5 minutes)
-
-1. Start the **Run server** and **Run simulator** tasks, then sign in as `admin_demo` on one browser and `inspector_demo` on another (or a private window).
-2. **Equipment → Add equipment**, then **Thresholds** to edit its limits, then **Print label**.
-3. On **Overview**, watch the readings change without reloading the page.
-4. **Settings → Simulator**: set a machine to **Force warning**, then **Force critical**. The alert escalates, a toast appears, and the sidebar badge counts it.
-5. As the inspector, **Acknowledge** the alert. As the admin, **Resolve** it with notes.
-6. **QR Scanner**: scan the printed or on-screen label, and the right machine opens.
-7. As the inspector, start the assigned inspection, add a photo, mark one item **Fail**, and **Submit**. A defect is created.
-8. As the admin, open **Inspections → Defects**, choose **Create task**, and assign it to the inspector. As the inspector, **Start work**, then **Complete task** with notes. The defect closes. Health is recalculated, never just set to healthy.
-9. Download the inspection PDF and the equipment health PDF.
-10. As the inspector, try `/equipment/new/` (403) and another user's report, e.g. `/reports/inspection/<id>.pdf` (404).
-
-## 6. Architecture
-
-```
-simulate_sensors  (separate process, Ctrl+C to stop)
-   |  HTTP POST /api/v1/ingest/        header: Authorization: Token <SIMULATOR_TOKEN>
-   v
-ingest view  (inside the web server process)
-   v
-monitoring.services.process_reading()     -- inside transaction.atomic():
-   1. validate + save SensorReading (source = SIMULATED)
-   2. evaluate each metric against the machine's thresholds
-   3. update Equipment.health_status + last_reading_at
-   4. create / escalate / auto-resolve Alerts (dedup + hysteresis)
-   v  transaction.on_commit
-channel_layer.group_send("dashboard", small payload: code, name, status, values, time, source, alert id/severity/metric, counts)
-   v
-DashboardConsumer  ->  browser JS updates KPIs, badges and Chart.js without a reload
-                       (if the socket fails: polls the JSON API every 10 s)
-```
-
-**Why the simulator posts over HTTP.** The in-memory channel layer only works inside one process. A management command in another terminal cannot push to WebSocket clients directly. Sending readings through the ingest endpoint keeps all database writes and all broadcasts in the web server process (no Redis, no SQLite lock fights). It also mirrors how a real IoT gateway posts data.
-
-| App | Owns |
-|---|---|
-| `config/` | settings, URLs, ASGI (ProtocolTypeRouter + AuthMiddlewareStack + AllowedHostsOriginValidator), all API URLs in `api_urls.py` |
-| `core` | dashboard, layout and partials, permission mixins/decorators, settings landing page, error pages, PWA, `seed_demo` |
-| `accounts` | `UserProfile.role`, login/logout, user management |
-| `equipment` | equipment CRUD, thresholds, health calculation, QR image/labels, `/e/<uuid>/` redirect, lookup API |
-| `monitoring` | readings, alerts, simulator settings, `process_reading()`, ingest/read APIs, WebSocket consumer, `simulate_sensors` |
-| `inspections` | checklist templates, inspections, responses, photos, defects, QR scanner page |
-| `maintenance` | maintenance tasks, the transition table, status history |
-| `reports` | ReportLab PDF builders and permission-checked downloads |
-
-Business logic lives in each app's `services.py`. Views stay thin, and models validate themselves.
-
-### JSON API (`/api/v1/`)
+## 8. API (`/api/v1/`)
 
 | Method | Path | Who |
 |---|---|---|
-| POST | `ingest/` | simulator token (no session, so no CSRF) |
-| GET | `dashboard/summary/` | logged in |
-| GET | `equipment/status/` | logged in (paginated) |
-| GET | `equipment/<code>/readings/?limit=60` | logged in |
-| GET | `equipment/lookup/?q=<code or uuid>` | logged in |
-| GET | `alerts/?status=open\|all\|ACTIVE…&severity=&metric=&equipment=` | logged in (paginated) |
-| POST | `alerts/<id>/acknowledge/` | any role |
-| POST | `alerts/<id>/resolve/` `{"resolution_notes": "…"}` | Admin |
+| POST | `detections/` | camera service (`Authorization: Token <DETECTION_API_TOKEN>`, 120/min) |
+| GET | `floor/` | staff |
+| GET | `tables/lookup/?q=T12` | staff |
+| GET | `reservations/availability/?start_at=…&guests=4` | manager, receptionist |
+| POST | `reservations/` | manager, receptionist (30/min, 409 on conflict) |
+| GET | `notifications/` · POST `notifications/read/` | staff |
 
-Browser calls use the session cookie plus the CSRF token. Errors always look like `{"error": "...", "details": {...}}`.
+Browser calls use the session cookie plus the CSRF token. Errors are always `{"error": "...", "details": {...}}`.
 
-## 7. Business rules (summary)
+## 9. Security
 
-- **Roles.** There are two roles, Admin and Inspector, and superusers count as Admin. Access is enforced on the server by mixins/decorators and by `visible_to(user)` querysets. Forbidden actions give a 403 page. Records you may not see give 404.
-- **Thresholds.** Every metric has an upper limit only (higher is worse) and needs `0 < warning < critical`. This is checked in `Equipment.clean()` and by a database CheckConstraint. Defaults: temperature 70 / 85 °C, vibration 7.1 / 11.0 mm/s, pressure 8.0 / 10.0 bar.
-- **Metric status.** A value below warning is NORMAL. From warning (inclusive) up to critical it is WARNING. At or above critical it is CRITICAL.
-- **Health.**
-  - Health is the worst metric status of the latest reading.
-  - An unresolved HIGH defect raises Healthy to Warning.
-  - A machine is OFFLINE when it has had no reading for 30 s.
-  - Deactivated machines are INACTIVE. They keep their history and are left out of the counts and the simulator.
-- **Alerts.**
-  - **Lifecycle:** ACTIVE → ACKNOWLEDGED → RESOLVED, and ACTIVE → RESOLVED is also allowed. RESOLVED is final.
-  - **Dedup:** at most one open alert per machine and metric, enforced by a partial unique constraint.
-  - **Escalation:** a WARNING alert crossing critical becomes CRITICAL, and severity never goes back down automatically.
-  - **Auto-resolve:** 3 readings in a row below warning × 0.95 resolve the alert automatically.
-  - **Manual resolve:** Admin only, with notes required.
-- **Inspections.**
-  - **States:** ASSIGNED → IN_PROGRESS → SUBMITTED. Starting copies the checklist into the inspection, so later template edits don't change history.
-  - **Remarks:** required for Fail and Needs attention.
-  - **Result:** any Fail gives FAIL, otherwise any Needs attention gives ATTENTION, otherwise PASS. N/A is ignored, and an all-N/A inspection is rejected.
-  - **Submitting** creates defects (Fail = HIGH, Needs attention = MEDIUM). It locks the row against double submits. Submitted inspections are read-only, so a correction means a new inspection.
-  - **Ad-hoc:** an inspector without an open assignment can start an inspection from the equipment page.
-- **Photos.**
-  - Only JPEG, PNG or WebP up to 5 MB, checked by Pillow rather than the file name.
-  - Saved again at a maximum of 1600 px, with EXIF removed and a UUID file name.
-  - Served only through a permission-checked view.
-- **Maintenance.**
-  - **Codes:** tasks are numbered `MT-0001`, …
-  - **Transitions:** OPEN→ASSIGNED (admin, assignee required), ASSIGNED→OPEN (admin), ASSIGNED→IN_PROGRESS (assignee/admin), IN_PROGRESS→COMPLETED (assignee/admin, notes required). COMPLETED is final, and every change is logged.
-  - **Converting a defect** moves it to In maintenance, and it closes when the task completes.
-  - **Alerts** are never resolved by tasks.
-  - **Health** is recomputed after completion, never forced to healthy.
-- **Reports.** Both reports have a header, "Page X of Y", table headers that repeat across pages, and a SIMULATED-data note. Authorization runs before generation.
+Session auth (HttpOnly cookies, 8 h), CSRF on every form and API POST, login lock-out after 5 failed attempts per username and IP (15 minutes), role checks and restaurant scoping on every view and WebSocket, object-level checks (own tasks, inspectable tables), input validation in forms and services, photo uploads validated with Pillow (JPEG/PNG/WebP, 5 MB, EXIF stripped, UUID file names, served only through a permission-checked view), audit logs for tables, tasks and reservations, locked transactions for booking and task completion, DRF throttling on the detection and booking endpoints, custom 403/404/500 pages, logs in `logs/app.log`.
 
-More detail and every judgment call is in [`docs/DECISIONS.md`](docs/DECISIONS.md). Build status is in [`docs/PROGRESS.md`](docs/PROGRESS.md).
+## 10. Testing
 
-## 8. Troubleshooting
+```powershell
+python manage.py test          # 62 tests
+```
+
+Business rules (`tables/tests_state.py`): status priority, inspections, camera detections, task workflow and permissions, reservation conflicts, time-based availability, hold window, cancellation, seating rules. Pages and APIs (`core/tests.py`): role matrix for all three roles, login lock-out, the complete Table 12 story through the real pages, overrides and audit log, history after deactivation, booking and double booking, customer-data isolation, detection token, floor and lookup APIs, CSRF, WebSocket groups (anonymous rejected; events reach the right restaurant and roles), seed command, PWA files.
+
+The 16 acceptance items from the specification were also run in three live browsers (manager, waiter, receptionist) against the dev server; all pass. The script is `docs/acceptance_walkthrough.py` (needs Playwright and Edge; run with the server on port 8765 after `seed_demo --reset`).
+
+## 11. Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `.venv\Scripts\activate` fails in PowerShell ("running scripts is disabled") | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. Alternatively use Command Prompt, or skip activation and call `.venv\Scripts\python.exe manage.py …` directly. The VS Code tasks do this already. |
-| **Port 8000 is already in use** | Find the owner with `netstat -ano \| findstr :8000` and close it. Or use another port: `python manage.py runserver 8001` together with `python manage.py simulate_sensors --url http://127.0.0.1:8001`. Add the new origin to `CSRF_TRUSTED_ORIGINS` if you log in from another device. |
-| **"database is locked"** | SQLite runs in WAL mode with a 20 s timeout and IMMEDIATE transactions, so this should be rare. Close DB browser tools that hold the file open, make sure only one server is running, and restart the server. |
-| **Camera blocked or "in use"** | Allow camera access in the site settings (padlock icon). Close other apps or tabs using the camera (Teams, Zoom, Camera app). On a phone over LAN http, use **Scan from image file** (see camera notes above). |
-| **WebSocket shows 404** / the dot stays amber | `daphne` must be the **first** entry in `INSTALLED_APPS`. Otherwise `runserver` starts the plain WSGI server, which has no WebSockets. Check that the terminal says `Starting ASGI/Daphne … development server`. Also check that the host you browse to is in `ALLOWED_HOSTS`. |
-| Machines all show OFFLINE | The simulator is not running, or it uses a different `SIMULATOR_TOKEN` or `--url` from the server. |
-| Simulator says "token rejected" | The server and simulator must use the same `.env`. Restart the server after editing `.env`. |
-| Pages look unstyled | The CDN files did not load. Check your internet connection or proxy. |
+| PowerShell blocks `activate` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or call `.venv\Scripts\python.exe manage.py …` directly (the VS Code tasks do). |
+| Port 8000 in use | `netstat -ano \| findstr :8000`, close the owner, or `python manage.py runserver 8001` (add the origin to `CSRF_TRUSTED_ORIGINS`). |
+| "database is locked" | WAL mode with a 20 s timeout is on; close DB browser tools and run a single server. |
+| Live dot stays amber ("polling") | `daphne` must be first in `INSTALLED_APPS` (it is); check the terminal says *Starting ASGI/Daphne*; check the host is in `ALLOWED_HOSTS`. |
+| Camera blocked | Allow it in the site settings, close other apps using it, or scan from a photo / type the table number. |
+| Detection client says token rejected | Server and client read the same `.env`; restart the server after editing it. |
 
-## 9. What would change for production
+## 12. Production notes
 
-- `DEBUG=False`, a real `SECRET_KEY` (the app refuses to start without one), and real `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`.
-- **HTTPS** everywhere, with `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, HSTS and `SECURE_PROXY_SSL_HEADER` behind the proxy. This also lets phones use the camera.
-- **PostgreSQL** instead of SQLite (concurrent writers, backups).
-- **Redis channel layer** (`channels-redis`) so several server processes can share WebSocket groups. Run the app with Daphne or Uvicorn behind Nginx.
-- **Static files** collected with `collectstatic` and served by Nginx, WhiteNoise or a CDN, using hashed file names. **Media/photos** go to private object storage (S3-compatible) with signed URLs, still checked by the app.
-- **Sensor source:** real devices or a gateway posting to the ingest API with per-device tokens (`source=DEVICE`). Rate limiting, monitoring and log rotation.
-- Email or push notifications for critical alerts, and scheduled preventive maintenance.
+`DEBUG=False` with a real `SECRET_KEY` (the app refuses to start without one), HTTPS with secure cookies and HSTS, PostgreSQL, the Redis channel layer (`channels-redis`) for several server processes, `collectstatic` behind Nginx/WhiteNoise, private object storage for photos, a scheduler for `check_overdue_tasks`, a real camera/vision service posting to the detection API with per-device tokens.
 
-## 10. Project layout
+## 13. Layout
 
 ```
 config/          settings, urls, api_urls, asgi, wsgi
-core/            dashboard, permissions, navigation, PWA, seed_demo, shared templates tags
-accounts/        roles, login, user management
-equipment/       machines, thresholds, metrics, health, QR
-monitoring/      readings, alerts, simulator, ingest + read APIs, WebSocket consumer
-inspections/     templates, inspections, photos, defects, scanner
-maintenance/     tasks + transitions + history
-reports/         PDF builders and downloads
-templates/       base layout, partials/, one folder per app
-static/          css/app.css (design tokens), js/*.js, icons/, offline.html
-scripts/         start_server.bat, start_simulator.bat, make_icons.py
-docs/            PROGRESS.md, DECISIONS.md
+core/            layout, permissions, middleware (request.restaurant), realtime bus + consumer, manager dashboard, PWA, seed_demo
+accounts/        StaffProfile (role, restaurant), login with lock-out, staff management
+tables/          Restaurant, sections, tables, status rule + audit log, floor views, QR codes
+inspections/     table inspections, photos, detection API, scanner page
+tasks/           waiter tasks, transition table, history, waiter dashboard
+reservations/    bookings, availability, booking desk, APIs
+notifications/   in-app notifications
+reports/         analytics (measured vs estimate) and PDFs
+templates/       base layout, partials/, one folder per app   static/  css, js, icons
+docs/            TRANSFORMATION.md (audit, plan, decisions, acceptance run)
 ```

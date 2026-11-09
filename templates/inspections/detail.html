@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -15,7 +16,7 @@
       <div class="card-header">Answers</div>
       <div class="card-body">
         <dl class="detail-list">
-          <dt>Inspected by</dt><dd>{% if inspection.inspector %}{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}{% else %}{{ inspection.device_id|default:"Camera" }}{% endif %}</dd>
+          <dt>Inspected by</dt><dd>{% if inspection.inspector %}{{ inspection.inspector|person }}{% else %}{{ inspection.device_id|default:"Camera" }}{% endif %}</dd>
           {% if inspection.confidence is not None %}<dt>Confidence</dt><dd>{{ inspection.confidence }}{% if not inspection.applied %} (too low: recorded, not applied){% endif %}</dd>{% endif %}
           {% if inspection.task %}<dt>Task</dt><dd><a href="{% url 'tasks:detail' inspection.task_id %}">{{ inspection.task.task_code }}</a></dd>{% endif %}
           <dt>Customers seated</dt><dd>{{ inspection.customers_present|yesno:"Yes,No" }}</dd>

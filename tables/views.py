@@ -75,9 +75,9 @@ def detail_context(request, table):
     if is_manager:
         context.update(
             assign_form=AssignWaiterForm(initial={"waiter": table.assigned_waiter}, restaurant=request.restaurant),
-            override_form=OverrideForm(initial={"is_occupied": "1" if table.is_occupied else "0",
-                                                "cleanliness": table.cleanliness}),
-            block_form=BlockForm(),
+            override_form=OverrideForm(prefix="override", initial={"is_occupied": "1" if table.is_occupied else "0",
+                                                                   "cleanliness": table.cleanliness}),
+            block_form=BlockForm(prefix="block"),
         )
     return context
 
@@ -126,7 +126,7 @@ def assign_waiter(request, pk):
 @require_POST
 def override(request, pk):
     table = get_object_or_404(RestaurantTable, pk=pk, restaurant=request.restaurant)
-    form = OverrideForm(request.POST)
+    form = OverrideForm(request.POST, prefix="override")
     if not form.is_valid():
         messages.error(request, "Fill in every override field, including the reason.")
         return redirect_after_action(request, table)
@@ -141,9 +141,9 @@ def override(request, pk):
 def block(request, pk):
     table = get_object_or_404(RestaurantTable, pk=pk, restaurant=request.restaurant)
     blocked = request.POST.get("blocked") == "1"
-    return run_action(request, table, lambda: services.set_blocked(
-        table, blocked=blocked, reason=request.POST.get("reason", ""), user=request.user,
-    ), f"{table.label} {'blocked' if blocked else 'unblocked'}.")
+    reason = request.POST.get("block-reason", "")
+    return run_action(request, table, lambda: services.set_blocked(table, blocked=blocked, reason=reason, user=request.user),
+                      f"{table.label} {'blocked' if blocked else 'unblocked'}.")
 
 
 @manager_required
