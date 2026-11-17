@@ -310,6 +310,16 @@ class WorkerApiTests(CameraCase):
                              self.frame_payload([{"zone": other_zone.pk, "occupied": True, "dishes": None}]))
         self.assertEqual(response.json()["applied"], [])
 
+    def test_frame_with_capacity_and_tables_count(self):
+        payload = self.frame_payload()
+        payload["room_capacity"] = 24
+        payload["detected_tables_count"] = 6
+        response = self.post(f"/api/v1/cameras/{self.camera.pk}/frame/", payload)
+        self.assertEqual(response.status_code, 201)
+        res = services.latest_results(self.camera)
+        self.assertEqual(res["room_capacity"], 24)
+        self.assertEqual(res["detected_tables"], 6)
+
 
 class ConsoleAndZoneTests(CameraCase):
     def test_console_for_manager_only(self):
@@ -356,3 +366,34 @@ class ConsoleAndZoneTests(CameraCase):
         self.assertFalse(Camera.objects.filter(pk=camera.pk).exists())
         self.client.force_login(self.waiter)
         self.assertEqual(self.client.get(reverse("cctv:camera_list")).status_code, 403)
+
+    def test_auto_calibrate_zones_and_view(self):
+        self.client.force_login(self.manager)
+
+        class MockDetector:
+            def detect_scene(self, frame, min_confidence=0.5):
+                t = Detection(TABLE, (50, 50, 150, 150), 0.9, polygon=[(50, 50), (150, 50), (150, 150), (50, 150)])
+                chairs = [
+                    Detection(CHAIR, (90, 30, 110, 45), 0.85),
+                    Detection(CHAIR, (90, 155, 110, 170), 0.85),
+                    Detection(CHAIR, (30, 90, 45, 110), 0.85),
+                    Detection(CHAIR, (155, 90, 170, 110), 0.85),
+                ]
+                return SceneDetections(tables=[t], chairs=chairs)
+
+        frame = numpy.zeros((200, 200, 3), dtype=numpy.uint8)
+        summary = services.auto_calibrate_zones(self.camera, frame=frame, detector=MockDetector())
+        self.assertEqual(summary["tables_detected"], 1)
+        self.assertEqual(summary["total_capacity"], 4)
+        zone = TableZone.objects.get(camera=self.camera)
+        self.assertEqual(zone.table, self.table)
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.capacity, 4)
+
+        # Test view endpoint
+        import cv2
+        ok, buf = cv2.imencode(".jpg", frame)
+        cache.set(services.frame_key(self.camera.pk), buf.tobytes(), 30)
+        url = reverse("cctv:auto_detect", args=[self.camera.pk])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 200)

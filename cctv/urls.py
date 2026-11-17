@@ -11,6 +11,7 @@ urlpatterns = [
     path("camera/<int:pk>/frame.jpg", views.frame, name="frame"),
     path("camera/<int:pk>/zones/", views.zones, name="zones"),
     path("camera/<int:pk>/zones/save/", views.save_zones, name="save_zones"),
+    path("camera/<int:pk>/auto-detect/", views.auto_detect_zones, name="auto_detect"),
     path("settings/", views.camera_list, name="camera_list"),
     path("settings/new/", views.camera_edit, name="camera_create"),
     path("settings/<int:pk>/", views.camera_edit, name="camera_edit"),

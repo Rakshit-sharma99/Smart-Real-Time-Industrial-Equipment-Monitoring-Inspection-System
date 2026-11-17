@@ -98,7 +98,19 @@ class CameraRunner:
             frame = cv2.resize(frame, (MAX_FRAME_WIDTH, int(height * scale)))
             height, width = frame.shape[:2]
 
-        detections = self.detector.detect(frame, float(self.camera.min_confidence))
+        scene_func = getattr(self.detector, "detect_scene", None)
+        if callable(scene_func):
+            scene = self.detector.detect_scene(frame, float(self.camera.min_confidence))
+            detections = scene.all_occupancy_detections
+            from cctv.analysis import analyze_scene_geometry
+            geom = analyze_scene_geometry(scene.tables, scene.chairs)
+            room_cap = geom.total_capacity if geom.tables else None
+            tables_cnt = geom.total_tables if geom.tables else None
+        else:
+            detections = self.detector.detect(frame, float(self.camera.min_confidence))
+            room_cap = None
+            tables_cnt = None
+
         zones = [(zone.pk, zone.points) for zone in self.camera.zones.all()]
         per_zone = assign_to_zones(detections, zones, width, height)
         results, changes = {}, []
@@ -109,7 +121,13 @@ class CameraRunner:
             tracker = self.trackers.setdefault(zone_id, ZoneTracker(required=self.camera.frames_to_confirm))
             confirmed = tracker.observe(occupied, dishes)
             if confirmed is not None:
-                changes.append({"zone": zone_id, **confirmed, "confidence": counts["confidence"] or None})
+                auto_clean = (not confirmed["occupied"]) and (confirmed.get("dishes") is False)
+                changes.append({
+                    "zone": zone_id,
+                    **confirmed,
+                    "confidence": counts["confidence"] or None,
+                    "auto_mark_clean": auto_clean,
+                })
 
         ok, jpeg = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
         payload = {
@@ -117,6 +135,8 @@ class CameraRunner:
             "detector": self.detector.name, "detects_dishes": self.detector.dishes_supported,
             "zones": results, "changes": changes,
             "detections": [{"label": d.label, "box": [round(v) for v in d.box], "confidence": round(d.confidence, 2)} for d in detections],
+            "room_capacity": room_cap,
+            "detected_tables_count": tables_cnt,
         }
         try:
             reply = self.client.post(f"/api/v1/cameras/{self.camera.pk}/frame/", payload)

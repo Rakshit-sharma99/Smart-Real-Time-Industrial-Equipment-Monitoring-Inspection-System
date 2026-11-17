@@ -42,10 +42,10 @@ Enhance the RestaurantSpy CCTV & monitoring system to:
   - [x] Write unit tests verifying end-to-end automated state transitions.
   - [x] Git commit for Checkpoint 4.
 
-- [ ] **Checkpoint 5: Auto-Floor Calibration API & Camera Worker Integration**
-  - [ ] Create API endpoint / command for "Auto-Detect Floor Layout & Tables" from a camera frame.
-  - [ ] Update `CameraRunner` in `cctv/management/commands/run_cameras.py` to stream detected shapes, chair counts, room capacity, and live states.
-  - [ ] Git commit for Checkpoint 5.
+- [x] **Checkpoint 5: Auto-Floor Calibration API & Camera Worker Integration**
+  - [x] Create API endpoint and management command (`python manage.py auto_detect_tables`) for AI auto-detection of floor tables, shape, and capacity.
+  - [x] Update `CameraRunner` in `cctv/management/commands/run_cameras.py` to stream detected shapes, chair counts, room capacity, and live states with auto-clean.
+  - [x] Git commit for Checkpoint 5.
 
 - [ ] **Checkpoint 6: UI & Real-Time Dashboard Enhancements**
   - [ ] Update Live CCTV console (`templates/cctv/console.html`, `static/js/cctv.js`):

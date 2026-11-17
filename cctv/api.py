@@ -38,6 +38,8 @@ class FrameSerializer(serializers.Serializer):
     zones = serializers.DictField(child=ZoneResultSerializer(), required=False, default=dict)
     changes = ZoneChangeSerializer(many=True, required=False, default=list)
     detections = serializers.ListField(required=False, default=list)
+    room_capacity = serializers.IntegerField(required=False, allow_null=True, default=None)
+    detected_tables_count = serializers.IntegerField(required=False, allow_null=True, default=None)
 
 
 class CameraFrameView(APIView):
@@ -60,7 +62,12 @@ class CameraFrameView(APIView):
             return Response({"error": "The frame is not a JPEG.", "details": {}}, status=status.HTTP_400_BAD_REQUEST)
         services.store_frame(camera, jpeg, data["width"], data["height"])
         services.set_detector(camera, data["detector"], data["detects_dishes"])
-        services.store_results(camera, {str(k): v for k, v in data["zones"].items()})
+        services.store_results(
+            camera,
+            {str(k): v for k, v in data["zones"].items()},
+            room_capacity=data.get("room_capacity"),
+            detected_tables=data.get("detected_tables_count"),
+        )
         applied = services.apply_zone_changes(camera, data["changes"])
         return Response({"stored": True, "applied": applied}, status=status.HTTP_201_CREATED)
 

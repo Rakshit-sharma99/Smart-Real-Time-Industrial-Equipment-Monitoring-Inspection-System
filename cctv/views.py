@@ -101,6 +101,18 @@ def save_zones(request, pk):
     return JsonResponse({"saved": len(new_zones)})
 
 
+@manager_required
+@require_POST
+def auto_detect_zones(request, pk):
+    """Automatically detect tables, geometry and chairs from the camera frame and generate zones."""
+    camera = get_object_or_404(restaurant_cameras(request), pk=pk)
+    try:
+        summary = services.auto_calibrate_zones(camera)
+        return JsonResponse(summary)
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+
 # --- Camera settings ----------------------------------------------------------------------------
 
 
