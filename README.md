@@ -100,15 +100,27 @@ python manage.py send_test_detection --table 4 --people 0 --dishes 1
 
 **Settings > Cameras & AI** holds the cameras: name, source (`rtsp://user:pass@host/stream`, an `http(s)://` URL, a webcam index such as `0`, or a video file path = **demo**), detection interval, minimum confidence and how many consecutive samples must agree before a table changes. Credentials are stored on the server and shown masked everywhere.
 
-**Live CCTV** (managers) shows the latest frame at about one frame per second with every table zone drawn over it and labelled `T12 - OCCUPIED`, `T2 - FREE`, `T5 - NEEDS CLEARING`, `T7 - CLEANING`, plus the people (and dishes, if detectable) counted in each zone. Camera picker, pause, full screen, last-frame time, detector name, and a clear status: LIVE, DEMO VIDEO, DISCONNECTED or not started.
+**Live CCTV** (managers) shows the latest frame at about one frame per second with every table zone drawn over it and labelled with table number, shape icon (`○` Circular / `□` Rectangular), seating capacity, live status, and assigned waiter name (`🧑‍🍳 Waiter: Name`), plus counts for people and dishes. A live top KPI banner displays **Room Capacity**, **Seats Occupied**, **Seats Available**, and **Monitored Tables**. Features camera picker, pause, full screen, last-frame time, detector name, and status (LIVE, DEMO VIDEO, DISCONNECTED).
 
-**Table zones**: on the camera's picture, pick a table, click the corners of its area (3+ points), *Finish zone*, *Save*. Zones are stored per camera in normalised coordinates, so they survive restarts and resolution changes.
+**AI Auto-Floor Calibration & Zone Detection**:
+Instead of manually drawing polygons, the system uses YOLO instance segmentation to automatically detect dining tables and generate precise boundary polygons.
+- **Table Shape Classification**: Geometric analysis computes the circularity index ($C = \frac{4\pi \cdot \text{Area}}{\text{Perimeter}^2}$) and vertex approximation to distinguish **circular tables** ($C \ge 0.82$) from **rectangular tables** ($C < 0.82$).
+- **Chair Proximity & Seating Capacity**: Detects chairs in the frame, maps them to the nearest table via expanded buffer zones, and computes individual table capacities (e.g., 2, 4, 6 seats) as well as the aggregate total room capacity.
+- **One-Click Auto-Detection**: Click **Auto-Detect Tables (AI)** on the Live CCTV console or Zone Editor, or run via CLI:
+  ```powershell
+  python manage.py auto_detect_tables --camera 1
+  ```
+
+**Table zones (Manual Adjustment)**: on the camera's picture, you can still manually adjust or create custom polygonal zones. Zones are stored per camera in normalised coordinates, so they survive restarts and resolution changes.
 
 **How a detection becomes a table status** (`cctv/analysis.py`, `cctv/services.py`, `inspections/services.py`):
 
-1. The worker grabs a frame and runs the detector; each detection's anchor point (hips for a person, centre for tableware) is matched to the zone it falls in.
-2. A zone's observation (occupied? dishes?) must repeat for `frames_to_confirm` samples before it is published, so people walking past, a brief occlusion or one bad frame change nothing.
-3. A confirmed change is recorded as a **camera check** on the table (source CAMERA, with confidence and camera name) and applied through the same state rule as a staff check: occupied/vacant, and *dishes remaining* becomes *cleaning required* when the dishes disappear. Never *clean*, never *Ready*.
+1. The worker grabs a frame and runs the detector (`detect_scene`), detecting tables, chairs, people, and tableware.
+2. A zone's observation (occupied? dishes?) must repeat for `frames_to_confirm` samples before it is published, filtering out passing pedestrians or brief occlusions.
+3. State transitions reflect automatically in real-time:
+   - **Customer Seated** $\rightarrow$ **Occupied** (blocks new bookings from taking the table, shows assigned waiter).
+   - **Dishes / Leftovers remaining** $\rightarrow$ **Clean the table / Needs clearing** (dispatches a cleaning alert notification to the assigned waiter).
+   - **Blank table (No customers & No dishes)** $\rightarrow$ Auto-transitions directly to **Vacant / Ready**, instantly broadcasting over WebSockets to receptionist and manager screens.
 4. If the stream drops, the worker reports DISCONNECTED and tables keep their last known state until a person or a reconnected camera says otherwise. Managers can always override, with a reason, and the audit log records the source of every change (camera, staff check, task, booking, override).
 
 ## 6. Real-time synchronisation
