@@ -44,7 +44,7 @@
       </div>
     </div>
 
-    <div class="cctv-stage" id="cctvStage" style="aspect-ratio: {{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
+    <div class="cctv-stage" id="cctvStage" data-aspect-ratio="{{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
       <img id="cctvFrame" alt="Latest frame from {{ camera.name }}" class="{% if not state.has_frame %}d-none{% endif %}" src="{% if state.has_frame %}{% url 'cctv:frame' camera.pk %}?t=0{% endif %}">
       <svg id="cctvOverlay" class="cctv-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
       <div class="cctv-labels" id="cctvLabels"></div>

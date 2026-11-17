@@ -16,6 +16,9 @@
   const liveBadge = document.getElementById("cctvLiveBadge");
   const pauseButton = document.getElementById("cctvPause");
   const stage = document.getElementById("cctvStage");
+  if (stage && stage.dataset.aspectRatio) {
+    stage.style.aspectRatio = stage.dataset.aspectRatio;
+  }
   const COLORS = {
     READY: "#16a34a", OCCUPIED: "#2563eb", RESERVED: "#9333ea", VACANT_NEEDS_CLEARING: "#ea580c",
     CLEANING_REQUIRED: "#dc2626", CLEANING_IN_PROGRESS: "#0891b2", BLOCKED: "#6b7280", INACTIVE: "#6b7280",

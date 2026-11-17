@@ -10,7 +10,7 @@
 {% endif %}
 <div class="row g-3" id="zoneEditor" data-save-url="{% url 'cctv:save_zones' camera.pk %}" data-frame-url="{% url 'cctv:frame' camera.pk %}" data-has-frame="{{ has_frame|yesno:'1,0' }}">
   <div class="col-lg-8">
-    <div class="cctv-stage editor" id="zoneStage" style="aspect-ratio: {{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
+    <div class="cctv-stage editor" id="zoneStage" data-aspect-ratio="{{ camera.frame_width|default:16 }} / {{ camera.frame_height|default:9 }}">
       {% if has_frame %}<img id="zoneFrame" src="{% url 'cctv:frame' camera.pk %}" alt="Camera frame">{% endif %}
       <svg id="zoneOverlay" class="cctv-overlay editing" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
       <div class="cctv-labels" id="zoneLabels"></div>
@@ -25,9 +25,8 @@
       </div>
       <div class="card-body">
         <p class="small text-body-secondary mb-2">Automatically detect all tables, polygon boundaries, shapes (circular/rectangular), and count surrounding chairs.</p>
-        <button class="btn btn-primary w-100" type="button" id="zoneAutoDetect" data-url="{% url 'cctv:auto_detect' camera.pk %}">
-          <i class="bi bi-magic" aria-hidden="true"></i> Auto-Detect Tables via AI
-        </button>
+        {% url 'cctv:auto_detect' camera.pk as auto_detect_url %}
+        <button class="btn btn-primary w-100" type="button" id="zoneAutoDetect" data-url="{{ auto_detect_url }}"><i class="bi bi-magic" aria-hidden="true"></i> Auto-Detect Tables via AI</button>
       </div>
     </div>
     <div class="card">

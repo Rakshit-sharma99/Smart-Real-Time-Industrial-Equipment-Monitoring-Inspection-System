@@ -6,6 +6,9 @@
   if (!editor) return;
   const RS = window.RestaurantSpy;
   const stage = document.getElementById("zoneStage");
+  if (stage && stage.dataset.aspectRatio) {
+    stage.style.aspectRatio = stage.dataset.aspectRatio;
+  }
   const overlay = document.getElementById("zoneOverlay");
   const labels = document.getElementById("zoneLabels");
   const list = document.getElementById("zoneList");

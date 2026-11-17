@@ -358,7 +358,7 @@ a.kpi-tile:hover { border-color: #cfcfca; color: var(--rs-text); }
 .cctv-status.st-online { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
 .cctv-status.st-demo { color: #b45309; border-color: #fde68a; background: #fffbeb; }
 .cctv-status.st-offline { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
-.cctv-stage { position: relative; width: 100%; background: #0f1215; border-radius: 10px; overflow: hidden; min-height: 240px; }
+.cctv-stage { position: relative; width: 100%; background: #0f1215; border-radius: 10px; overflow: hidden; min-height: 240px; aspect-ratio: 16 / 9; }
 .cctv-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block; }
 .cctv-stage.editor { cursor: crosshair; }
 .cctv-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
