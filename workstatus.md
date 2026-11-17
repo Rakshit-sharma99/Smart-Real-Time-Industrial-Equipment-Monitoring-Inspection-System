@@ -22,11 +22,11 @@ Enhance the RestaurantSpy CCTV & monitoring system to:
   - [x] Add `ultralytics` to `requirements.txt` and install in `.venv` (with lightweight model support and offline fallback).
   - [x] Git commit for Checkpoint 1.
 
-- [ ] **Checkpoint 2: Vision Model & Instance Segmentation Engine**
-  - [ ] Implement instance segmentation detector in `cctv/detectors.py` supporting `dining table`, `chair`, `person`, and tableware (`cup`, `bottle`, `bowl`, `fork`, `knife`, `spoon`).
-  - [ ] Extract polygon coordinates from table segmentation masks.
-  - [ ] Add mock/test fixture capability so tests run deterministically without GPU or internet.
-  - [ ] Git commit for Checkpoint 2.
+- [x] **Checkpoint 2: Vision Model & Instance Segmentation Engine**
+  - [x] Implement instance segmentation detector in `cctv/detectors.py` supporting `dining table`, `chair`, `person`, and tableware (`cup`, `bottle`, `bowl`, `fork`, `knife`, `spoon`).
+  - [x] Extract polygon coordinates from table segmentation masks with simplification.
+  - [x] Add structured `SceneDetections` and unit tests in `cctv/tests.py`.
+  - [x] Git commit for Checkpoint 2.
 
 - [ ] **Checkpoint 3: Geometry & Capacity Analysis Engine**
   - [ ] Implement table shape classification (Rectangular vs Circular) via circularity index ($4\pi A / P^2$) and vertex approximation (`approxPolyDP`).

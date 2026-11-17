@@ -1,51 +1,91 @@
 """
-Detector layer: turns one video frame into a list of detections.
+Detector layer: turns one video frame into a list of detections and structured scene elements.
 
     detector = available_detector()
-    for det in detector.detect(frame):   # Detection(label, box=(x1, y1, x2, y2) in pixels, confidence)
+    scene = detector.detect_scene(frame)
+    # scene.tables: detected tables with polygon contours
+    # scene.chairs: detected chairs for capacity mapping
+    # scene.people: detected persons
+    # scene.dishes: detected tableware / leftovers
 
-Two implementations:
-  HogPersonDetector   OpenCV's built-in HOG + SVM people detector. Works offline with no
-                      model download. Detects people only, so it can judge occupancy but
-                      NOT dishes (dishes_supported = False).
-  UltralyticsDetector YOLO (COCO classes) when the optional `ultralytics` package and a
-                      weights file are installed. Detects people AND tableware (cup, bowl,
-                      bottle, wine glass, fork, knife, spoon), so it can also flag dishes.
-
-Neither can see whether a surface is wiped clean, so a table is never marked Ready by a
-camera (see inspections.services.record_detection).
+Implementations:
+  HogPersonDetector   OpenCV's built-in HOG + SVM people detector. Works completely offline.
+  UltralyticsDetector YOLO instance segmentation & detection (tables, chairs, people, tableware).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import os
 
 import cv2
+import numpy as np
 
 PERSON = "person"
 DISHES = "dishes"
-TABLEWARE_CLASSES = {"cup", "bowl", "bottle", "wine glass", "fork", "knife", "spoon", "dining table"}
+TABLE = "table"
+CHAIR = "chair"
+
+TABLEWARE_CLASSES = {"cup", "bowl", "bottle", "wine glass", "fork", "knife", "spoon"}
+
+
+def simplify_polygon(pts_array, epsilon_ratio=0.015):
+    """Simplify polygon points using Douglas-Peucker algorithm."""
+    if pts_array is None or len(pts_array) < 3:
+        return None
+    pts = np.array(pts_array, dtype=np.float32).reshape((-1, 1, 2))
+    perimeter = cv2.arcLength(pts, True)
+    epsilon = max(1.0, epsilon_ratio * perimeter)
+    approx = cv2.approxPolyDP(pts, epsilon, True)
+    if len(approx) < 3:
+        return tuple((float(p[0]), float(p[1])) for p in pts_array)
+    return tuple((float(pt[0][0]), float(pt[0][1])) for pt in approx)
+
+
+def box_to_polygon(box):
+    """Convert (x1, y1, x2, y2) bounding box to a 4-point polygon."""
+    x1, y1, x2, y2 = box
+    return ((float(x1), float(y1)), (float(x2), float(y1)), (float(x2), float(y2)), (float(x1), float(y2)))
 
 
 @dataclass(frozen=True)
 class Detection:
-    label: str  # "person" or "dishes"
+    label: str  # "person", "dishes", "table", "chair"
     box: tuple  # (x1, y1, x2, y2) pixels
     confidence: float
+    polygon: tuple = None  # tuple of (x, y) pixels for tables
 
     @property
     def anchor(self):
         """Point used to decide which table zone the detection belongs to."""
         x1, y1, x2, y2 = self.box
         if self.label == PERSON:
-            return ((x1 + x2) / 2, y1 + (y2 - y1) * 0.75)  # roughly hip height: where a seated person "is"
+            return ((x1 + x2) / 2, y1 + (y2 - y1) * 0.75)  # roughly hip height
         return ((x1 + x2) / 2, (y1 + y2) / 2)
+
+
+@dataclass
+class SceneDetections:
+    tables: list = field(default_factory=list)
+    chairs: list = field(default_factory=list)
+    people: list = field(default_factory=list)
+    dishes: list = field(default_factory=list)
+
+    @property
+    def all_occupancy_detections(self):
+        """People + dishes for table zone matching (backward compatibility)."""
+        return self.people + self.dishes
 
 
 class HogPersonDetector:
     name = "OpenCV HOG people detector"
     dishes_supported = False
+    tables_supported = False
 
     def __init__(self):
         self.hog = cv2.HOGDescriptor()
         self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+
+    def detect_scene(self, frame, min_confidence=0.5):
+        people = self.detect(frame, min_confidence=min_confidence)
+        return SceneDetections(people=people)
 
     def detect(self, frame, min_confidence=0.5):
         height, width = frame.shape[:2]
@@ -63,25 +103,65 @@ class HogPersonDetector:
 class UltralyticsDetector:
     name = "Ultralytics YOLO"
     dishes_supported = True
+    tables_supported = True
 
-    def __init__(self, weights="yolov8n.pt"):
-        from ultralytics import YOLO  # optional dependency
+    def __init__(self, weights=None):
+        from ultralytics import YOLO
+
+        if weights is None:
+            # Prefer segmentation model if present, otherwise default to yolov8n-seg.pt or yolov8n.pt
+            if os.path.exists("yolov8n-seg.pt"):
+                weights = "yolov8n-seg.pt"
+            elif os.path.exists("yolov8n.pt"):
+                weights = "yolov8n.pt"
+            else:
+                weights = "yolov8n-seg.pt"
 
         self.model = YOLO(weights)
+        self.weights_name = weights
         self.name = f"Ultralytics YOLO ({weights})"
 
-    def detect(self, frame, min_confidence=0.5):
-        results = []
-        for result in self.model.predict(frame, verbose=False, conf=float(min_confidence)):
+    def detect_scene(self, frame, min_confidence=0.5):
+        tables = []
+        chairs = []
+        people = []
+        dishes = []
+
+        results = self.model.predict(frame, verbose=False, conf=float(min_confidence))
+        for result in results:
             names = result.names
-            for box in result.boxes:
-                label = names[int(box.cls)]
+            has_masks = hasattr(result, "masks") and result.masks is not None
+
+            for i, box in enumerate(result.boxes):
+                label_name = names[int(box.cls)]
                 x1, y1, x2, y2 = (float(v) for v in box.xyxy[0])
-                if label == PERSON:
-                    results.append(Detection(PERSON, (x1, y1, x2, y2), float(box.conf)))
-                elif label in TABLEWARE_CLASSES and label != "dining table":
-                    results.append(Detection(DISHES, (x1, y1, x2, y2), float(box.conf)))
-        return results
+                conf = float(box.conf)
+                box_coords = (x1, y1, x2, y2)
+
+                if label_name == "dining table" or label_name == TABLE:
+                    polygon = None
+                    if has_masks and i < len(result.masks.xy):
+                        mask_pts = result.masks.xy[i]
+                        if len(mask_pts) >= 3:
+                            polygon = simplify_polygon(mask_pts)
+                    if polygon is None:
+                        polygon = box_to_polygon(box_coords)
+                    tables.append(Detection(TABLE, box_coords, conf, polygon=polygon))
+
+                elif label_name == "chair" or label_name == CHAIR:
+                    chairs.append(Detection(CHAIR, box_coords, conf))
+
+                elif label_name == PERSON:
+                    people.append(Detection(PERSON, box_coords, conf))
+
+                elif label_name in TABLEWARE_CLASSES:
+                    dishes.append(Detection(DISHES, box_coords, conf))
+
+        return SceneDetections(tables=tables, chairs=chairs, people=people, dishes=dishes)
+
+    def detect(self, frame, min_confidence=0.5):
+        scene = self.detect_scene(frame, min_confidence=min_confidence)
+        return scene.all_occupancy_detections
 
 
 def available_detector(prefer_yolo=True):

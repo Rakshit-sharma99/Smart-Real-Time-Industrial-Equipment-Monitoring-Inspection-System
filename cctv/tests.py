@@ -15,7 +15,18 @@ from tables import services as table_services
 from tables.models import RestaurantTable, TableStatus
 
 from .analysis import ZoneTracker, assign_to_zones, point_in_polygon
-from .detectors import Detection, HogPersonDetector, available_detector
+from .detectors import (
+    CHAIR,
+    DISHES,
+    PERSON,
+    TABLE,
+    Detection,
+    HogPersonDetector,
+    SceneDetections,
+    available_detector,
+    box_to_polygon,
+    simplify_polygon,
+)
 from .models import Camera, TableZone
 
 SQUARE = [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]]  # normalised zone covering the top-left quarter
@@ -72,6 +83,41 @@ class AnalysisTests(TestCase):
         self.assertEqual(detector.detect(frame), [])  # an empty grey frame has no people
         self.assertFalse(detector.dishes_supported)
         self.assertFalse(available_detector(prefer_yolo=False).dishes_supported)
+
+    def test_detection_polygon_and_scene_structure(self):
+        poly = box_to_polygon((10, 20, 100, 80))
+        self.assertEqual(len(poly), 4)
+        self.assertEqual(poly[0], (10.0, 20.0))
+
+        table_det = Detection(TABLE, (10, 20, 100, 80), 0.95, polygon=poly)
+        chair_det = Detection(CHAIR, (5, 10, 25, 40), 0.85)
+        person_det = Detection(PERSON, (30, 40, 60, 90), 0.9)
+        dishes_det = Detection(DISHES, (40, 45, 55, 60), 0.88)
+
+        scene = SceneDetections(
+            tables=[table_det],
+            chairs=[chair_det],
+            people=[person_det],
+            dishes=[dishes_det],
+        )
+        self.assertEqual(len(scene.tables), 1)
+        self.assertEqual(len(scene.chairs), 1)
+        self.assertEqual(len(scene.all_occupancy_detections), 2)
+        self.assertEqual(table_det.polygon, poly)
+
+        # Simplify polygon
+        noisy_pts = [(0, 0), (5, 0.1), (10, 0), (10, 10), (0, 10)]
+        simplified = simplify_polygon(noisy_pts)
+        self.assertIsNotNone(simplified)
+        self.assertLessEqual(len(simplified), len(noisy_pts))
+
+    def test_hog_detector_detect_scene(self):
+        detector = HogPersonDetector()
+        frame = numpy.zeros((240, 320, 3), dtype=numpy.uint8)
+        scene = detector.detect_scene(frame)
+        self.assertIsInstance(scene, SceneDetections)
+        self.assertEqual(len(scene.people), 0)
+        self.assertEqual(len(scene.tables), 0)
 
 
 class CameraCase(TestCase):
