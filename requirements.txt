@@ -8,6 +8,8 @@ python-dotenv==1.2.4
 qrcode[pil]==8.2
 reportlab==4.5.1
 pillow==13.0.0
+opencv-python<5
+numpy
 
 # Transitive dependencies (pinned for reproducible installs)
 asgiref==3.13.0
