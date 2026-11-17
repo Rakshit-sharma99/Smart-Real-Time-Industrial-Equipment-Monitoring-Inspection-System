@@ -14,7 +14,19 @@ from inspections.models import TableInspection
 from tables import services as table_services
 from tables.models import RestaurantTable, TableStatus
 
-from .analysis import ZoneTracker, assign_to_zones, point_in_polygon
+from .analysis import (
+    CIRCULAR,
+    RECTANGULAR,
+    ZoneTracker,
+    analyze_scene_geometry,
+    assign_to_zones,
+    classify_table_shape,
+    expand_polygon,
+    map_chairs_to_tables,
+    point_in_polygon,
+    polygon_area,
+    polygon_perimeter,
+)
 from .detectors import (
     CHAIR,
     DISHES,
@@ -118,6 +130,54 @@ class AnalysisTests(TestCase):
         self.assertIsInstance(scene, SceneDetections)
         self.assertEqual(len(scene.people), 0)
         self.assertEqual(len(scene.tables), 0)
+
+    def test_classify_table_shape(self):
+        import math
+        # 16-point circle around (50, 50)
+        circle_poly = [
+            (50 + 20 * math.cos(2 * math.pi * i / 16), 50 + 20 * math.sin(2 * math.pi * i / 16))
+            for i in range(16)
+        ]
+        shape_circ, circ_val = classify_table_shape(circle_poly)
+        self.assertEqual(shape_circ, CIRCULAR)
+        self.assertGreater(circ_val, 0.85)
+
+        # Rectangular table (100 x 40)
+        rect_poly = [(0, 0), (100, 0), (100, 40), (0, 40)]
+        shape_rect, rect_val = classify_table_shape(rect_poly)
+        self.assertEqual(shape_rect, RECTANGULAR)
+        self.assertLess(rect_val, 0.82)
+
+    def test_chair_mapping_and_scene_geometry(self):
+        # Table 1: at (50, 50) box [20, 20, 80, 80]
+        t1 = Detection(TABLE, (20, 20, 80, 80), 0.9, polygon=[(20, 20), (80, 20), (80, 80), (20, 80)])
+        # Table 2: at (250, 50) box [220, 20, 280, 80]
+        t2 = Detection(TABLE, (220, 20, 280, 80), 0.9, polygon=[(220, 20), (280, 20), (280, 80), (220, 80)])
+
+        # 4 chairs around Table 1
+        chairs_t1 = [
+            Detection(CHAIR, (50, 10, 60, 20), 0.8),  # top
+            Detection(CHAIR, (50, 80, 60, 90), 0.8),  # bottom
+            Detection(CHAIR, (10, 50, 20, 60), 0.8),  # left
+            Detection(CHAIR, (80, 50, 90, 60), 0.8),  # right
+        ]
+        # 2 chairs around Table 2
+        chairs_t2 = [
+            Detection(CHAIR, (250, 10, 260, 20), 0.8),
+            Detection(CHAIR, (250, 80, 260, 90), 0.8),
+        ]
+        all_chairs = chairs_t1 + chairs_t2
+
+        mapping = map_chairs_to_tables([t1, t2], all_chairs)
+        self.assertEqual(mapping[0], 4)
+        self.assertEqual(mapping[1], 2)
+
+        geom = analyze_scene_geometry([t1, t2], all_chairs)
+        self.assertEqual(geom.total_tables, 2)
+        self.assertEqual(geom.total_capacity, 6)
+        self.assertEqual(geom.tables[0].capacity, 4)
+        self.assertEqual(geom.tables[1].capacity, 2)
+        self.assertEqual(geom.tables[0].shape, RECTANGULAR)
 
 
 class CameraCase(TestCase):

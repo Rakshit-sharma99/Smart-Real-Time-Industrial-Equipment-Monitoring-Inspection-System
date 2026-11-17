@@ -28,12 +28,12 @@ Enhance the RestaurantSpy CCTV & monitoring system to:
   - [x] Add structured `SceneDetections` and unit tests in `cctv/tests.py`.
   - [x] Git commit for Checkpoint 2.
 
-- [ ] **Checkpoint 3: Geometry & Capacity Analysis Engine**
-  - [ ] Implement table shape classification (Rectangular vs Circular) via circularity index ($4\pi A / P^2$) and vertex approximation (`approxPolyDP`).
-  - [ ] Implement chair-to-table spatial proximity mapping (buffer zones).
-  - [ ] Calculate per-table seating capacity and aggregate total room capacity.
-  - [ ] Write unit tests in `cctv/tests.py` verifying shape detection, chair assignment, and capacity calculations.
-  - [ ] Git commit for Checkpoint 3.
+- [x] **Checkpoint 3: Geometry & Capacity Analysis Engine**
+  - [x] Implement table shape classification (Rectangular vs Circular) via circularity index ($4\pi A / P^2$) and vertex approximation.
+  - [x] Implement chair-to-table spatial proximity mapping (buffer zones).
+  - [x] Calculate per-table seating capacity and aggregate total room capacity.
+  - [x] Write unit tests in `cctv/tests.py` verifying shape detection, chair assignment, and capacity calculations.
+  - [x] Git commit for Checkpoint 3.
 
 - [ ] **Checkpoint 4: Automated State Transition Engine**
   - [ ] Update state machine in `cctv/analysis.py`, `tables/services.py`, and `inspections/services.py` to allow AI camera detections to transition tables directly to `Ready / Vacant` when completely clear.
