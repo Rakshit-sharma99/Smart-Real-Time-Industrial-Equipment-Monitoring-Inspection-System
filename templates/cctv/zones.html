@@ -18,8 +18,20 @@
     <p class="small text-body-secondary mt-2 mb-0"><strong>How to draw:</strong> choose a table on the right, then click the corners of the table area on the picture (3 or more points) and press <em>Finish zone</em>. Click a zone's name to remove it. Save when done.</p>
   </div>
   <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+        <span>AI Auto-Detection</span>
+        <span class="badge bg-primary">YOLO</span>
+      </div>
+      <div class="card-body">
+        <p class="small text-body-secondary mb-2">Automatically detect all tables, polygon boundaries, shapes (circular/rectangular), and count surrounding chairs.</p>
+        <button class="btn btn-primary w-100" type="button" id="zoneAutoDetect" data-url="{% url 'cctv:auto_detect' camera.pk %}">
+          <i class="bi bi-magic" aria-hidden="true"></i> Auto-Detect Tables via AI
+        </button>
+      </div>
+    </div>
     <div class="card">
-      <div class="card-header">Zones</div>
+      <div class="card-header">Manual Zone Adjustment</div>
       <div class="card-body">
         <label class="form-label small" for="zoneTable">Table for the next zone</label>
         <select class="form-select mb-2" id="zoneTable">

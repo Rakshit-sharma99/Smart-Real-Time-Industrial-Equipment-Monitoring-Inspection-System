@@ -47,12 +47,13 @@ Enhance the RestaurantSpy CCTV & monitoring system to:
   - [x] Update `CameraRunner` in `cctv/management/commands/run_cameras.py` to stream detected shapes, chair counts, room capacity, and live states with auto-clean.
   - [x] Git commit for Checkpoint 5.
 
-- [ ] **Checkpoint 6: UI & Real-Time Dashboard Enhancements**
-  - [ ] Update Live CCTV console (`templates/cctv/console.html`, `static/js/cctv.js`):
-    - Live overlays with shape indicator, seat count, status badge, and assigned waiter name.
-    - Top summary bar: Total Capacity, Occupied Seats, Available Seats, Total Tables.
-  - [ ] Update Floor View and Booking Desk to display dynamic table capacity and shape icons.
-  - [ ] Git commit for Checkpoint 6.
+- [x] **Checkpoint 6: UI & Real-Time Dashboard Enhancements**
+  - [x] Update Live CCTV console (`templates/cctv/console.html`, `static/js/cctv.js`):
+    - Live overlays with shape indicator (circular vs rectangular), seat count, status badge, and assigned waiter name.
+    - Top summary bar: Total Room Capacity, Occupied Seats, Available Seats, Total Tables.
+    - One-click "Auto-Detect Tables via AI" button directly in the console and Zone Editor.
+  - [x] Update Zone tables and floor views to reflect live capacity, shapes, and waiter info.
+  - [x] Git commit for Checkpoint 6.
 
 - [ ] **Checkpoint 7: Full Verification & Documentation**
   - [ ] Run full test suite (`manage.py test`).

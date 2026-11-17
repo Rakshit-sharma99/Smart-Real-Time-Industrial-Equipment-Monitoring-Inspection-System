@@ -93,6 +93,28 @@
     drawing.pop();
     render();
   });
+  const autoDetectBtn = document.getElementById("zoneAutoDetect");
+  if (autoDetectBtn) {
+    autoDetectBtn.addEventListener("click", async function () {
+      autoDetectBtn.disabled = true;
+      const originalText = autoDetectBtn.innerHTML;
+      autoDetectBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Scanning camera frame...';
+      try {
+        const res = await RS.api(autoDetectBtn.dataset.url, { method: "POST" });
+        if (res.status === "ok") {
+          alert(`Success! Auto-detected ${res.tables_detected} table(s) with ${res.total_capacity} seats. Reloading floor zones...`);
+          window.location.reload();
+        } else {
+          alert(res.message || "No tables detected in frame.");
+        }
+      } catch (err) {
+        alert("Auto-detect failed: " + (err.message || err));
+      } finally {
+        autoDetectBtn.disabled = false;
+        autoDetectBtn.innerHTML = originalText;
+      }
+    });
+  }
   document.getElementById("zoneSave").addEventListener("click", async function () {
     status.textContent = "Saving…";
     try {

@@ -2,7 +2,12 @@
 <ul class="list-group list-group-flush cctv-table-list">
   {% for t in zone_tables %}
   <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-    <a class="fw-semibold" href="{{ t.get_absolute_url }}">{{ t.label }} <span class="text-body-secondary fw-normal small">· {{ t.capacity }} seats</span></a>
+    <div>
+      <a class="fw-semibold text-decoration-none" href="{{ t.get_absolute_url }}">{{ t.label }} <span class="text-body-secondary fw-normal small">· {{ t.capacity }} seats</span></a>
+      {% if t.assigned_waiter %}
+      <div class="small text-body-secondary"><i class="bi bi-person-badge" aria-hidden="true"></i> {{ t.assigned_waiter|person_short }}</div>
+      {% endif %}
+    </div>
     {% include "partials/status_badge.html" with status=t.status label=t.status_label %}
   </li>
   {% endfor %}

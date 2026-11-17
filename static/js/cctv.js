@@ -79,13 +79,47 @@
       label.style.left = (Math.min.apply(null, xs) * 100) + "%";
       label.style.top = (Math.min.apply(null, ys) * 100) + "%";
       label.style.borderColor = color;
+
       let text = zone.table + " — " + (SHORT[zone.status] || zone.status_label || "?") + (offline ? " (last known)" : "");
       const extra = [];
       if (zone.people !== null && zone.people !== undefined) extra.push(zone.people + " 👤");
       if (zone.dishes) extra.push(zone.dishes + " 🍽");
       label.innerHTML = "<strong>" + escapeHtml(text) + "</strong>" + (extra.length ? "<span>" + extra.join(" · ") + "</span>" : "");
+
+
+      const shapeIcon = zone.shape === "circular" ? "○" : "□";
+      const capText = zone.capacity ? ` (${shapeIcon} ${zone.capacity} seats)` : "";
+      let titleText = `${zone.table}${capText} — ${SHORT[zone.status] || zone.status_label || "?"}`;
+
+      const metaLines = [];
+      if (zone.waiter_name) metaLines.push(`Waiter: ${zone.waiter_name}`);
+      const counts = [];
+      if (zone.people !== null && zone.people !== undefined) counts.push(zone.people + " 👤");
+      if (zone.dishes) counts.push(zone.dishes + " 🍽");
+      if (counts.length) metaLines.push(counts.join(" · "));
+
+      label.innerHTML = `<strong>${escapeHtml(titleText)}</strong>` +
+        (metaLines.length ? `<div class="small opacity-75" style="font-size:0.75rem;">${metaLines.map(escapeHtml).join("<br>")}</div>` : "");
       labels.appendChild(label);
     });
+
+    // Update KPI summary numbers
+    const kpiCap = document.getElementById("kpiCapacity");
+    if (kpiCap && state.total_restaurant_capacity !== undefined) {
+      kpiCap.textContent = (state.detected_room_capacity || state.total_restaurant_capacity) + " seats";
+    }
+    const kpiOcc = document.getElementById("kpiOccupied");
+    if (kpiOcc && state.occupied_seats !== undefined) {
+      kpiOcc.textContent = state.occupied_seats + " seats";
+    }
+    const kpiAvail = document.getElementById("kpiAvailable");
+    if (kpiAvail && state.available_seats !== undefined) {
+      kpiAvail.textContent = state.available_seats + " seats";
+    }
+    const kpiTabs = document.getElementById("kpiTables");
+    if (kpiTabs && state.total_tables_count !== undefined) {
+      kpiTabs.textContent = state.detected_tables_count || state.total_tables_count;
+    }
   }
 
   function tickClock() {
@@ -111,6 +145,29 @@
       statusEl.textContent = "Server unreachable";
       statusEl.className = "cctv-status st-offline";
     }
+  }
+
+  const autoBtn = document.getElementById("cctvAutoDetect");
+  if (autoBtn) {
+    autoBtn.addEventListener("click", async function () {
+      autoBtn.disabled = true;
+      const originalText = autoBtn.innerHTML;
+      autoBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Scanning...';
+      try {
+        const resp = await RS.api(autoBtn.dataset.url, { method: "POST" });
+        if (resp.status === "ok") {
+          alert(`Success! Auto-detected ${resp.tables_detected} table(s) with total capacity of ${resp.total_capacity} seats.`);
+        } else {
+          alert(resp.message || "No tables detected.");
+        }
+        refresh();
+      } catch (err) {
+        alert("Auto-detection failed: " + (err.message || err));
+      } finally {
+        autoBtn.disabled = false;
+        autoBtn.innerHTML = originalText;
+      }
+    });
   }
 
   pauseButton.addEventListener("click", function () {
