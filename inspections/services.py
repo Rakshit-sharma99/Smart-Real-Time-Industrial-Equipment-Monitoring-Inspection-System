@@ -95,19 +95,20 @@ def record_inspection(table, user, *, customers_present, plates_present, glasses
     return inspection
 
 
-def record_detection(table, *, customers_present, dishes_present=None, confidence=None, device_id=""):
+def record_detection(table, *, customers_present, dishes_present=None, confidence=None, device_id="", auto_mark_clean=False):
     """
     A camera / computer-vision result. Stored always; applied to the table only
     when its confidence is high enough.
 
     dishes_present: True / False when the detector can see tableware, None when
-    it cannot (then the table's cleanliness is left alone). A camera can set
-    occupancy and report dishes, and it can move "dishes on the table" to
-    "needs cleaning" once the dishes are gone - but never to clean.
+    it cannot (then the table's cleanliness is left alone).
+    When auto_mark_clean is True (or AI_AUTO_VACANT is enabled), a table observed
+    without customers and without dishes is automatically marked clean and becomes Ready.
     """
     applied = confidence is None or confidence >= settings.DETECTION_MIN_CONFIDENCE
+    auto_vacant = auto_mark_clean or getattr(settings, "AI_AUTO_VACANT", False)
     with transaction.atomic():
-        table = type(table).objects.select_for_update().select_related("restaurant").get(pk=table.pk)
+        table = type(table).objects.select_for_update().select_related("restaurant", "assigned_waiter").get(pk=table.pk)
         was_occupied = table.is_occupied
         inspection = TableInspection.objects.create(
             table=table, source=Source.CAMERA, device_id=device_id, confidence=confidence, applied=applied,
@@ -118,10 +119,16 @@ def record_detection(table, *, customers_present, dishes_present=None, confidenc
         if applied:
             if dishes_present:
                 cleanliness = Cleanliness.NEEDS_CLEARING
-            elif dishes_present is False and table.cleanliness == Cleanliness.NEEDS_CLEARING:
-                cleanliness = Cleanliness.NEEDS_CLEANING  # dishes gone; a person still has to clean and confirm
+            elif dishes_present is False:
+                if auto_vacant and not customers_present:
+                    cleanliness = Cleanliness.CLEAN
+                elif table.cleanliness == Cleanliness.NEEDS_CLEARING:
+                    cleanliness = Cleanliness.NEEDS_CLEANING  # dishes gone; a person still has to clean
+                else:
+                    cleanliness = None
             else:
                 cleanliness = None  # unchanged (or not checked)
+
             note = f"{inspection.reference} from {device_id or 'camera'}"
             if confidence is not None:
                 note += f", confidence {confidence:.2f}"
@@ -131,8 +138,26 @@ def record_detection(table, *, customers_present, dishes_present=None, confidenc
             )
             if was_occupied and not customers_present:
                 reservation_services.finish_seated_reservations(table, None, note=f"Guests left ({inspection.reference})")
+
+            # If table has leftovers/dishes and no customers, alert the assigned waiter
+            if not customers_present and dishes_present and table.assigned_waiter:
+                notifications.notify(
+                    [table.assigned_waiter],
+                    restaurant=table.restaurant,
+                    kind=Notification.Kind.CLEANING_NEEDED,
+                    title=f"{table.label} needs clearing",
+                    message="AI camera detected dishes/leftovers. Please clear and reset the table.",
+                    link=reverse("tasks:waiter_home"),
+                )
+
         inspection.resulting_status = table_services.status_of(table)
-        inspection.save(update_fields=["resulting_status"])
+        update_fields = ["resulting_status"]
+        if applied and cleanliness == Cleanliness.CLEAN:
+            inspection.table_clean = True
+            inspection.ready_for_next = True
+            update_fields.extend(["table_clean", "ready_for_next"])
+        inspection.save(update_fields=update_fields)
+
         if applied:
             notify_managers(inspection)
     return inspection

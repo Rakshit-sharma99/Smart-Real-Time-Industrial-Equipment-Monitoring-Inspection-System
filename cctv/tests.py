@@ -14,6 +14,7 @@ from inspections.models import TableInspection
 from tables import services as table_services
 from tables.models import RestaurantTable, TableStatus
 
+from . import services
 from .analysis import (
     CIRCULAR,
     RECTANGULAR,
@@ -273,6 +274,22 @@ class WorkerApiTests(CameraCase):
         self.assertEqual(self.status(), TableStatus.VACANT_NEEDS_CLEARING)
         self.post(f"/api/v1/cameras/{self.camera.pk}/frame/", self.frame_payload([{"zone": self.zone.pk, "occupied": False, "dishes": False}]))
         self.assertEqual(self.status(), TableStatus.CLEANING_REQUIRED)
+
+    def test_auto_mark_clean_changes_table_to_ready(self):
+        # When auto_mark_clean is True in the confirmed change, blank table becomes READY
+        self.post(f"/api/v1/cameras/{self.camera.pk}/frame/", self.frame_payload([{"zone": self.zone.pk, "occupied": False, "dishes": True}]))
+        self.assertEqual(self.status(), TableStatus.VACANT_NEEDS_CLEARING)
+        self.post(f"/api/v1/cameras/{self.camera.pk}/frame/", self.frame_payload([{"zone": self.zone.pk, "occupied": False, "dishes": False, "auto_mark_clean": True}]))
+        self.assertEqual(self.status(), TableStatus.READY)
+
+    def test_console_state_includes_waiter_and_capacity(self):
+        self.table.assigned_waiter = self.waiter
+        self.table.save()
+        state = services.console_state(self.camera, {self.table.pk: self.table})
+        self.assertEqual(len(state["zones"]), 1)
+        z = state["zones"][0]
+        self.assertEqual(z["waiter_name"], self.waiter.username)
+        self.assertEqual(z["capacity"], self.table.capacity)
 
     def test_camera_offline_never_changes_tables(self):
         self.post(f"/api/v1/cameras/{self.camera.pk}/frame/", self.frame_payload([{"zone": self.zone.pk, "occupied": True, "dishes": None}]))

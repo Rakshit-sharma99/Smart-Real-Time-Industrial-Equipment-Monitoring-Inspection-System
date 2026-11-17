@@ -106,6 +106,23 @@ class InspectionTests(BaseCase):
         self.assertFalse(detection.applied)
         self.assertEqual(self.status(), S.READY)
 
+    def test_auto_mark_clean_makes_blank_table_ready(self):
+        # Start from a dirty table
+        inspections.record_detection(self.table, customers_present=False, dishes_present=True, confidence=0.9)
+        self.assertEqual(self.status(), S.VACANT_NEEDS_CLEARING)
+        # Blank table detected with auto_mark_clean=True -> directly becomes READY
+        inspections.record_detection(
+            self.table, customers_present=False, dishes_present=False, confidence=0.9, auto_mark_clean=True
+        )
+        self.assertEqual(self.status(), S.READY)
+
+    def test_camera_detection_notifies_assigned_waiter_when_dishes_detected(self):
+        self.table.assigned_waiter = self.waiter
+        self.table.save()
+        inspections.record_detection(self.table, customers_present=False, dishes_present=True, confidence=0.9)
+        waiter_notifs = Notification.objects.filter(recipient=self.waiter, kind=Notification.Kind.CLEANING_NEEDED)
+        self.assertTrue(waiter_notifs.exists())
+
 
 class TaskWorkflowTests(BaseCase):
     def dirty_table(self):

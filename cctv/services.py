@@ -69,6 +69,7 @@ def apply_zone_changes(camera, changes):
             inspection = inspection_services.record_detection(
                 zone.table, customers_present=change["occupied"], dishes_present=change.get("dishes"),
                 confidence=change.get("confidence"), device_id=camera.name,
+                auto_mark_clean=change.get("auto_mark_clean", False),
             )
         applied.append({"table": zone.table.label, "inspection": inspection.reference, "status": inspection.resulting_status})
     realtime.publish("camera.changed", restaurant_id=camera.restaurant_id, topics=["cameras"], everyone=True,
@@ -80,11 +81,16 @@ def console_state(camera, tables_by_id):
     """What the Live CCTV page polls once a second: camera status, frame time and per-zone labels."""
     results = latest_results(camera)
     zones = []
-    for zone in camera.zones.select_related("table"):
+    for zone in camera.zones.select_related("table__assigned_waiter"):
         table = tables_by_id.get(zone.table_id)
         detection = results["zones"].get(str(zone.pk)) or results["zones"].get(zone.pk) or {}
+        waiter = getattr(table, "assigned_waiter", None)
+        waiter_name = (waiter.get_full_name() or waiter.username) if waiter else ""
+        capacity = getattr(table, "capacity", zone.table.capacity)
         zones.append({
             "id": zone.pk, "table": zone.table.label, "points": zone.points,
+            "shape": getattr(zone, "shape", "rectangular"), "capacity": capacity,
+            "waiter_name": waiter_name,
             "status": getattr(table, "status", None), "status_label": getattr(table, "status_label", ""),
             "people": detection.get("people"), "dishes": detection.get("dishes"), "confidence": detection.get("confidence"),
         })

@@ -35,12 +35,12 @@ Enhance the RestaurantSpy CCTV & monitoring system to:
   - [x] Write unit tests in `cctv/tests.py` verifying shape detection, chair assignment, and capacity calculations.
   - [x] Git commit for Checkpoint 3.
 
-- [ ] **Checkpoint 4: Automated State Transition Engine**
-  - [ ] Update state machine in `cctv/analysis.py`, `tables/services.py`, and `inspections/services.py` to allow AI camera detections to transition tables directly to `Ready / Vacant` when completely clear.
-  - [ ] Ensure `Occupied` state blocks reservation booking and associates assigned waiter name.
-  - [ ] Ensure `Clean the table` state alerts the assigned waiter with a cleaning task.
-  - [ ] Write unit tests verifying end-to-end automated state transitions.
-  - [ ] Git commit for Checkpoint 4.
+- [x] **Checkpoint 4: Automated State Transition Engine**
+  - [x] Update state machine in `cctv/analysis.py`, `tables/services.py`, and `inspections/services.py` to allow AI camera detections to transition tables directly to `Ready / Vacant` when completely clear.
+  - [x] Ensure `Occupied` state blocks reservation booking and associates assigned waiter name.
+  - [x] Ensure `Clean the table` state alerts the assigned waiter with a cleaning task.
+  - [x] Write unit tests verifying end-to-end automated state transitions.
+  - [x] Git commit for Checkpoint 4.
 
 - [ ] **Checkpoint 5: Auto-Floor Calibration API & Camera Worker Integration**
   - [ ] Create API endpoint / command for "Auto-Detect Floor Layout & Tables" from a camera frame.

@@ -26,6 +26,7 @@ class ZoneChangeSerializer(serializers.Serializer):
     occupied = serializers.BooleanField()
     dishes = serializers.BooleanField(allow_null=True, required=False, default=None)
     confidence = serializers.FloatField(min_value=0, max_value=1, allow_null=True, required=False, default=None)
+    auto_mark_clean = serializers.BooleanField(required=False, default=False)
 
 
 class FrameSerializer(serializers.Serializer):
