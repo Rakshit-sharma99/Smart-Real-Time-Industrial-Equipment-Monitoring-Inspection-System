@@ -24,3 +24,4 @@ logs/
 Thumbs.db
 .vscode/*
 !.vscode/tasks.json
+*.pt
