@@ -1,14 +1,15 @@
 """
-Create demo data for local development and the viva demonstration.
+Demo data for RestaurantSpy (DEBUG only).
 
     python manage.py seed_demo           # create anything that is missing
-    python manage.py seed_demo --reset   # wipe demo data first, then recreate
+    python manage.py seed_demo --reset   # wipe the demo restaurant's data first
 
-Refuses to run when DEBUG=False so it can never touch a production database.
+One restaurant ("The Copper Fork"), 3 sections, 20 tables, 1 manager, 4 waiters,
+2 receptionists, a realistic live floor, today's bookings, one open task and a
+week of history (seated bookings, completed tasks, inspections) for the reports.
 """
 import random
 from datetime import timedelta
-from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,258 +18,234 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
-from equipment.metrics import VIBRATION
-from equipment.models import Equipment
-from equipment.services import recompute_health
-from inspections import services as inspection_services
-from inspections.models import Defect, Inspection, InspectionResponse, InspectionTemplate
-from maintenance import services as maintenance_services
-from maintenance.models import MaintenanceTask
-from monitoring.models import Alert, SensorReading, SimulatorSettings, Source
-from monitoring.services import AUTO_RESOLVE_NOTE
-from monitoring.simulation import SensorSimulator
+from cctv.models import Camera, TableZone
+from inspections import services as inspections
+from inspections.models import TableInspection
+from notifications.models import Notification
+from reservations import services as bookings
+from reservations.models import Reservation
+from tables import services as tables
+from tables.models import Cleanliness, Restaurant, RestaurantSection, RestaurantTable, TableStatusHistory
+from tasks import services as tasks
+from tasks.models import WaiterTask
 
-GENERAL_CHECKLIST = [
-    "Guards and safety covers are in place and secure",
-    "No unusual noise or vibration while running",
-    "No oil, coolant or air leaks visible",
-    "Belts, couplings and fasteners are tight and undamaged",
-    "Emergency stop works and is clearly labelled",
-    "Cables and electrical panels are undamaged and closed",
-    "Lubrication levels are within the marked range",
-    "Area around the machine is clean and unobstructed",
-]
-BOILER_CHECKLIST = [
-    "Pressure gauge reads within the normal operating range",
-    "Safety relief valve is free of corrosion and its seal is intact",
-    "Water level glass is clean and shows the correct level",
-    "No leaks at flanges, valves or joints",
-    "Burner flame is stable (no flicker or soot)",
-    "Insulation and lagging are intact",
-]
-
-BACKFILL_HOURS = 24
-BACKFILL_STEP_MINUTES = 5
-
+SLUG = "copper-fork"
 DEMO_USERS = [
-    # username, first name, last name, role
-    ("admin_demo", "Asha", "Admin", Role.ADMIN),
-    ("inspector_demo", "Ivan", "Inspector", Role.INSPECTOR),
-    ("inspector2_demo", "Isha", "Inspector", Role.INSPECTOR),
+    # username, first, last, role
+    ("manager_demo", "Meera", "Manager", Role.MANAGER),
+    ("waiter_demo", "Wasim", "Waiter", Role.WAITER),
+    ("waiter2_demo", "Wren", "Waiter", Role.WAITER),
+    ("waiter3_demo", "Wiktor", "Waiter", Role.WAITER),
+    ("waiter4_demo", "Wanda", "Waiter", Role.WAITER),
+    ("reception_demo", "Riya", "Reception", Role.RECEPTIONIST),
+    ("reception2_demo", "Rohan", "Reception", Role.RECEPTIONIST),
 ]
-
-T = Equipment.EquipmentType
-DEMO_EQUIPMENT = [
-    # code, name, type, location, extra fields
-    ("EQ-001", "Air Compressor AC-1", T.AIR_COMPRESSOR, "Compressor House", {"pres_warn": Decimal("9.00"), "pres_crit": Decimal("11.00")}),
-    ("EQ-002", "Hydraulic Pump HP-2", T.HYDRAULIC_PUMP, "Press Shop", {}),
-    ("EQ-003", "CNC Milling Centre", T.CNC_MACHINE, "Machining Bay B", {"sim_mode": Equipment.SimMode.DRIFT}),
-    ("EQ-004", "Steam Boiler B-1", T.BOILER, "Boiler House", {"temp_warn": Decimal("95.00"), "temp_crit": Decimal("110.00")}),
-    ("EQ-005", "Conveyor Drive Motor", T.CONVEYOR_MOTOR, "Packing Line 1", {}),
-    ("EQ-006", "Cooling Tower CT-1", T.COOLING_TOWER, "Utility Yard", {"is_active": False}),
-]
+SECTIONS = [("Main hall", "Ground floor"), ("Window side", "Ground floor"), ("Terrace", "First floor")]
+# (number, section index, seats)
+TABLES = [(n, 0, 4) for n in range(1, 9)] + [(n, 0, 2) for n in range(9, 13)] \
+    + [(n, 1, 2) for n in range(13, 17)] + [(17, 1, 6), (18, 2, 4), (19, 2, 4), (20, 2, 8)]
+CLEAN = dict(customers_present=False, plates_present=False, glasses_present=False, leftovers_present=False,
+             table_clean=True, chairs_arranged=True, ready_for_next=True)
+LEFT = dict(customers_present=False, plates_present=True, glasses_present=True, leftovers_present=True,
+            table_clean=False, chairs_arranged=False, ready_for_next=False)
+NAMES = ["Sharma", "Patel", "Iyer", "Khan", "Fernandes", "Das", "Mehta", "Nair", "Bose", "Reddy", "Gupta", "Joshi"]
 
 
 class Command(BaseCommand):
-    help = "Create demo users, equipment, readings, inspections and tasks (DEBUG only)."
+    help = "Create the demo restaurant, staff, tables, bookings, tasks and history (DEBUG only)."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--reset", action="store_true", help="Delete existing demo data before seeding."
-        )
+        parser.add_argument("--reset", action="store_true", help="Delete the demo restaurant's data first.")
 
     def handle(self, *args, **options):
         if not settings.DEBUG:
             raise CommandError("seed_demo only runs with DEBUG=True (it is for local demos).")
         if not settings.DEMO_PASSWORD:
             raise CommandError("DEMO_PASSWORD is empty. Set it in .env first.")
-
+        self.rng = random.Random(7)
         with transaction.atomic():
             if options["reset"]:
                 self.reset()
-            users = self.seed_users()
-            equipment = self.seed_equipment()
-            readings = self.seed_readings(equipment)
-            self.seed_alert_history(equipment)
-            SimulatorSettings.load()
-            inspection_count = self.seed_inspections(users, equipment)
-            self.seed_tasks(users, equipment)
-
+            self.restaurant = self.seed_restaurant()
+            self.users = self.seed_users()
+            self.tables = self.seed_tables()
+            self.seed_camera()
+            if not Reservation.objects.filter(restaurant=self.restaurant).exists():
+                self.seed_history()
+                self.seed_today()
         self.stdout.write(self.style.SUCCESS("Demo data ready."))
-        self.stdout.write(f"  Users: {', '.join(users)} (password from DEMO_PASSWORD in .env)")
-        self.stdout.write(f"  Equipment: {len(equipment)} machines")
-        self.stdout.write(f"  Readings backfilled: {readings}")
-        self.stdout.write(f"  Inspections: {inspection_count} (2 assigned to inspector_demo, 1 submitted with a defect)")
-        self.stdout.write(f"  Maintenance tasks: {MaintenanceTask.objects.count()} open")
-        self.stdout.write("  Machines show OFFLINE until you start: python manage.py simulate_sensors")
+        self.stdout.write(f"  Restaurant: {self.restaurant.name} ({len(self.tables)} tables)")
+        self.stdout.write(f"  Users: {', '.join(u[0] for u in DEMO_USERS)} (password: DEMO_PASSWORD in .env)")
+        self.stdout.write("  Camera: 'Main hall' = webcam 0 with zones for T1-T4. Start it with: python manage.py run_cameras")
+        self.stdout.write(f"  Reservations: {Reservation.objects.filter(restaurant=self.restaurant).count()}, "
+                          f"tasks: {WaiterTask.objects.filter(restaurant=self.restaurant).count()}, "
+                          f"inspections: {TableInspection.objects.filter(table__restaurant=self.restaurant).count()}")
 
     # --- steps -----------------------------------------------------------------
 
     def reset(self):
-        """Delete ALL equipment-related data and the demo users (this is a demo database)."""
-        # Remove uploaded photo files too, otherwise they stay behind in media/.
-        for response in InspectionResponse.objects.exclude(photo=""):
-            response.photo.delete(save=False)
-        # Task and inspection records are protected, so delete them before the equipment.
-        MaintenanceTask.objects.all().delete()
-        Defect.objects.all().delete()
-        Inspection.objects.all().delete()
-        InspectionTemplate.objects.all().delete()
-        Equipment.objects.all().delete()  # cascades to readings and alerts
-        SimulatorSettings.objects.all().delete()
-        User.objects.filter(username__in=[u[0] for u in DEMO_USERS]).delete()
+        restaurant = Restaurant.objects.filter(slug=SLUG).first()
+        if restaurant:
+            for photo_inspection in TableInspection.objects.filter(table__restaurant=restaurant):
+                for photo in photo_inspection.photos.all():
+                    photo.image.delete(save=False)
+            Notification.objects.filter(restaurant=restaurant).delete()
+            TableInspection.objects.filter(table__restaurant=restaurant).delete()
+            WaiterTask.objects.filter(restaurant=restaurant).delete()
+            Reservation.objects.filter(restaurant=restaurant).delete()
+            Camera.objects.filter(restaurant=restaurant).delete()
+            RestaurantTable.objects.filter(restaurant=restaurant).delete()
+            User.objects.filter(username__in=[u[0] for u in DEMO_USERS]).delete()
+            restaurant.delete()
         self.stdout.write("Existing demo data deleted.")
+
+    def seed_restaurant(self):
+        restaurant, _ = Restaurant.objects.get_or_create(
+            slug=SLUG, defaults={"name": "The Copper Fork", "address": "14 Lake Road"}
+        )
+        for order, (name, floor) in enumerate(SECTIONS, start=1):
+            RestaurantSection.objects.get_or_create(restaurant=restaurant, name=name, defaults={"floor": floor, "sort_order": order})
+        return restaurant
 
     def seed_users(self):
         users = {}
-        for username, first_name, last_name, role in DEMO_USERS:
+        for username, first, last, role in DEMO_USERS:
             user, created = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "email": f"{username}@example.com",
-                },
+                username=username, defaults={"first_name": first, "last_name": last, "email": f"{username}@example.com"}
             )
             if created:
                 user.set_password(settings.DEMO_PASSWORD)
                 user.save()
-            user.profile.role = role
+            user.profile.role, user.profile.restaurant = role, self.restaurant
             user.profile.save()
             users[username] = user
         return users
 
-    def seed_equipment(self):
-        equipment = {}
-        for code, name, equipment_type, location, extra in DEMO_EQUIPMENT:
-            fields = {"name": name, "equipment_type": equipment_type, "location": location, **extra}
-            machine, _ = Equipment.objects.get_or_create(equipment_code=code, defaults=fields)
-            equipment[code] = machine
-        return equipment
+    def seed_tables(self):
+        sections = list(self.restaurant.sections.order_by("sort_order"))
+        waiters = [self.users[u] for u in ("waiter_demo", "waiter2_demo", "waiter3_demo", "waiter4_demo")]
+        result = {}
+        for number, section_index, seats in TABLES:
+            table, created = RestaurantTable.objects.get_or_create(
+                restaurant=self.restaurant, number=number,
+                defaults={"section": sections[section_index], "capacity": seats, "assigned_waiter": waiters[(number - 1) // 5]},
+            )
+            if created:
+                TableStatusHistory.objects.create(table=table, to_status="READY", is_occupied=False, cleanliness=Cleanliness.CLEAN,
+                                                  is_blocked=False, source=TableStatusHistory.Source.SETUP, note="Table created")
+            result[number] = table
+        return result
 
-    def seed_readings(self, equipment):
-        """
-        24 h of history at 5-minute steps so charts are not empty. Generated
-        with the simulator in NORMAL mode and saved directly (no alerts).
-        Machines that already have readings are skipped.
-        """
-        simulator = SensorSimulator(rng=random.Random(42))
-        now = timezone.now()
-        steps = BACKFILL_HOURS * 60 // BACKFILL_STEP_MINUTES
-        created = 0
-        for machine in equipment.values():
-            if machine.readings.exists():
-                continue
-            # The deactivated machine gets history that ends a week ago.
-            end = now if machine.is_active else now - timedelta(days=7)
-            rows = []
-            for step in range(steps, 0, -1):
-                values = simulator.next_values(machine, noise_pct=2.0, mode=Equipment.SimMode.NORMAL)
-                rows.append(SensorReading(
-                    equipment=machine,
-                    recorded_at=end - timedelta(minutes=BACKFILL_STEP_MINUTES * (step - 1)),
-                    source=Source.SIMULATED,
-                    **values,
-                ))
-            SensorReading.objects.bulk_create(rows)
-            created += len(rows)
-            machine.last_reading_at = rows[-1].recorded_at
-            machine.save(update_fields=["last_reading_at", "updated_at"])
-            recompute_health(machine)
-        return created
+    def backdate(self, model, pk, **fields):
+        """Rewrite timestamps the services set to now(), so history looks like it happened in the past."""
+        model.objects.filter(pk=pk).update(**fields)
 
-    def seed_alert_history(self, equipment):
-        """One resolved alert from yesterday so the alert history is not empty."""
-        machine = equipment["EQ-003"]
-        if machine.alerts.exists():
-            return
-        start = timezone.now() - timedelta(hours=20)
-        Alert.objects.create(
-            equipment=machine,
-            metric=VIBRATION.key,
-            severity=Alert.Severity.CRITICAL,
-            status=Alert.Status.RESOLVED,
-            first_value=Decimal("7.40"),
-            last_value=Decimal("5.10"),
-            peak_value=Decimal("11.32"),
-            threshold_value=machine.vib_crit,
-            description=(
-                f"Escalated to CRITICAL. {VIBRATION.label} reached 11.32 {VIBRATION.unit} on "
-                f"{machine.equipment_code} ({machine.name}), at or above the critical limit of "
-                f"{machine.vib_crit} {VIBRATION.unit}. Source: SIMULATED sensor data "
-                "(demo reading, not a real emergency)."
-            ),
-            created_at=start,
-            last_seen_at=start + timedelta(minutes=6),
-            escalated_at=start + timedelta(minutes=4),
-            resolved_at=start + timedelta(minutes=9),
-            resolution_notes=AUTO_RESOLVE_NOTE,
-        )
-
-    def seed_inspections(self, users, equipment):
-        """Two checklist templates, two assigned inspections and one submitted inspection with a defect."""
-        general = self.make_template("General equipment inspection", "", GENERAL_CHECKLIST)
-        boiler = self.make_template("Boiler & pressure vessel inspection", Equipment.EquipmentType.BOILER, BOILER_CHECKLIST)
-        if Inspection.objects.exists():
-            return Inspection.objects.count()
-
-        admin, inspector = users["admin_demo"], users["inspector_demo"]
+    def seed_history(self):
+        """Seven days of seated bookings, each followed by a cleaning task and inspection."""
+        manager, reception = self.users["manager_demo"], self.users["reception_demo"]
+        waiters = [self.users[u] for u in ("waiter_demo", "waiter2_demo", "waiter3_demo", "waiter4_demo")]
         today = timezone.localdate()
-        inspection_services.assign_inspection(
-            equipment=equipment["EQ-001"], template=general, inspector=inspector,
-            due_date=today + timedelta(days=1), created_by=admin,
-        )
-        inspection_services.assign_inspection(
-            equipment=equipment["EQ-004"], template=boiler, inspector=inspector,
-            due_date=today + timedelta(days=3), created_by=admin,
-        )
+        for day_offset in range(7, 0, -1):
+            day = today - timedelta(days=day_offset)
+            for _ in range(self.rng.randint(9, 15)):
+                table = self.rng.choice(list(self.tables.values()))
+                hour = self.rng.choice([12, 13, 13, 14, 19, 19, 20, 20, 21])
+                start = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.min.time())) + timedelta(hours=hour, minutes=self.rng.choice([0, 15, 30, 45]))
+                end = start + timedelta(minutes=90)
+                if bookings.conflicts(table, start, end).exists():
+                    continue
+                party = self.rng.randint(1, table.capacity)
+                waiter = table.assigned_waiter or waiters[0]
+                arrived = start + timedelta(minutes=self.rng.randint(-5, 10))
+                seated = arrived + timedelta(minutes=self.rng.randint(0, 12))
+                left = seated + timedelta(minutes=self.rng.randint(45, 100))
+                reservation = Reservation.objects.create(
+                    restaurant=self.restaurant, table=table, customer_name=self.rng.choice(NAMES), phone="98765 00000",
+                    party_size=party, start_at=start, end_at=end, status=Reservation.Status.COMPLETED,
+                    created_by=reception, created_at=start - timedelta(days=1), confirmed_at=start - timedelta(days=1),
+                    arrived_at=arrived, seated_at=seated, completed_at=left,
+                )
+                reservation.history.create(to_status="CONFIRMED", changed_by=reception, created_at=reservation.created_at)
+                reservation.history.create(from_status="CONFIRMED", to_status="SEATED", changed_by=reception, created_at=seated)
+                reservation.history.create(from_status="SEATED", to_status="COMPLETED", changed_by=reception, created_at=left)
+                # Audit rows so occupancy can be rebuilt for the reports.
+                TableStatusHistory.objects.create(table=table, from_status="READY", to_status="OCCUPIED", is_occupied=True,
+                                                  cleanliness=Cleanliness.CLEAN, is_blocked=False,
+                                                  source=TableStatusHistory.Source.RESERVATION, changed_by=reception,
+                                                  note=f"{reservation.reference} seated", created_at=seated)
+                TableStatusHistory.objects.create(table=table, from_status="OCCUPIED", to_status="VACANT_NEEDS_CLEARING",
+                                                  is_occupied=False, cleanliness=Cleanliness.NEEDS_CLEARING, is_blocked=False,
+                                                  source=TableStatusHistory.Source.INSPECTION, changed_by=waiter,
+                                                  note="Guests left", created_at=left)
+                TableInspection.objects.create(table=table, inspector=waiter, created_at=left, resulting_status="VACANT_NEEDS_CLEARING", **LEFT)
+                assigned = left + timedelta(minutes=1)
+                started = assigned + timedelta(minutes=self.rng.randint(1, 8))
+                done = started + timedelta(minutes=self.rng.randint(4, 14))
+                task = WaiterTask.objects.create(
+                    restaurant=self.restaurant, table=table, task_type=WaiterTask.TaskType.FULL_RESET,
+                    priority=self.rng.choice(["NORMAL", "NORMAL", "HIGH"]), status=WaiterTask.Status.COMPLETED,
+                    assigned_to=waiter, created_by=manager, created_at=assigned, assigned_at=assigned,
+                    accepted_at=started, started_at=started, completed_at=done, due_at=assigned + timedelta(minutes=15),
+                    completion_remarks="Reset for the next guests",
+                )
+                task.history.create(action="CREATED", to_status="OPEN", changed_by=manager, created_at=assigned)
+                task.history.create(action="ASSIGNED", from_status="OPEN", to_status="ASSIGNED", changed_by=manager, created_at=assigned)
+                task.history.create(action="STARTED", from_status="ASSIGNED", to_status="IN_PROGRESS", changed_by=waiter, created_at=started)
+                task.history.create(action="COMPLETED", from_status="IN_PROGRESS", to_status="COMPLETED", changed_by=waiter, created_at=done)
+                TableInspection.objects.create(table=table, inspector=waiter, task=task, source=TableInspection.Source.TASK,
+                                               created_at=done, resulting_status="READY", **CLEAN)
+                TableStatusHistory.objects.create(table=table, from_status="CLEANING_IN_PROGRESS", to_status="READY", is_occupied=False,
+                                                  cleanliness=Cleanliness.CLEAN, is_blocked=False, source=TableStatusHistory.Source.TASK,
+                                                  changed_by=waiter, note=f"{task.task_code}", created_at=done)
+        # Tables were created "a week ago".
+        RestaurantTable.objects.filter(restaurant=self.restaurant).update(status_updated_at=timezone.now() - timedelta(hours=2))
 
-        # A submitted inspection, created through the real services so the rules apply.
-        done = inspection_services.assign_inspection(
-            equipment=equipment["EQ-002"], template=general, inspector=inspector,
-            due_date=today - timedelta(days=1), created_by=admin,
-        )
-        inspection_services.start_inspection(done, inspector)
-        Outcome = InspectionResponse.Outcome
-        for response in done.responses.all():
-            if "leaks" in response.item_text:
-                response.outcome = Outcome.FAIL
-                response.remarks = "Hydraulic oil weeping from the pump outlet fitting; drip tray half full."
-            elif "Emergency stop" in response.item_text:
-                response.outcome = Outcome.NOT_APPLICABLE
-                response.remarks = "E-stop is on the shared press panel, checked separately."
-            else:
-                response.outcome = Outcome.PASS
-            response.save()
-        done.remarks = "Pump running normally apart from the leak. Recommend replacing the outlet seal."
-        done.save(update_fields=["remarks"])
-        inspection_services.submit_inspection(done, inspector)
-        # Back-date it so the history looks natural.
-        yesterday = timezone.now() - timedelta(days=1)
-        Inspection.objects.filter(pk=done.pk).update(
-            created_at=yesterday - timedelta(days=1), started_at=yesterday - timedelta(minutes=25), submitted_at=yesterday
-        )
-        Defect.objects.filter(inspection=done).update(created_at=yesterday)
-        return Inspection.objects.count()
+    def seed_today(self):
+        """A live floor for the demo: occupied, dirty, cleaning, blocked and booked tables."""
+        manager, reception = self.users["manager_demo"], self.users["reception_demo"]
+        now = timezone.now()
+        t = self.tables
 
-    def make_template(self, name, equipment_type, items):
-        template, created = InspectionTemplate.objects.get_or_create(
-            name=name, defaults={"equipment_type": equipment_type}
+        # Seated guests at T1, T3, T14 (walk-ins and a booking that arrived).
+        for number, party in ((1, 4), (3, 2), (14, 2)):
+            bookings.seat_walk_in(restaurant=self.restaurant, table=t[number], party_size=party,
+                                  customer_name=self.rng.choice(NAMES), created_by=reception)
+        # T12: guests just left - dishes on the table (the demo's "Table 12" story starts here).
+        inspections.record_inspection(t[12], t[12].assigned_waiter, remarks="Guests left, two plates and glasses", **LEFT)
+        # T5: cleaning required (dishes cleared by a camera detection, not yet cleaned).
+        inspections.record_inspection(t[5], t[5].assigned_waiter, **LEFT)
+        inspections.record_detection(t[5], customers_present=False, dishes_present=False, confidence=0.91,
+                                     device_id="cam-hall-2")
+        # T7: cleaning in progress by waiter_demo.
+        inspections.record_inspection(t[7], t[7].assigned_waiter, **LEFT)
+        task = tasks.create_task(table=t[7], task_type=WaiterTask.TaskType.FULL_RESET, priority="HIGH",
+                                 created_by=manager, assignee=t[7].assigned_waiter)
+        tasks.start(task, user=t[7].assigned_waiter)
+        # T20: blocked.
+        tables.set_blocked(t[20], blocked=True, reason="Private party set-up until 18:00", user=manager)
+        # Bookings: one in the hold window (T17 reserved), others later today and tomorrow.
+        local_now = timezone.localtime(now)
+        bookings.create_reservation(restaurant=self.restaurant, table=t[17], customer_name="Kapoor", phone="98200 11223",
+                                    party_size=5, start_at=now + timedelta(minutes=20), created_by=reception, remarks="Birthday")
+        for number, hours, party, name in ((2, 3, 4, "Verma"), (18, 4, 3, "D'Souza"), (9, 5, 2, "Rao")):
+            bookings.create_reservation(restaurant=self.restaurant, table=t[number], customer_name=name, phone="98100 55667",
+                                        party_size=party, start_at=now + timedelta(hours=hours), created_by=reception)
+        tomorrow_7pm = timezone.make_aware(timezone.datetime.combine(local_now.date() + timedelta(days=1), timezone.datetime.min.time())) + timedelta(hours=19)
+        bookings.create_reservation(restaurant=self.restaurant, table=t[8], customer_name="Menon", phone="98300 99887",
+                                    party_size=4, start_at=tomorrow_7pm, created_by=reception)
+        # Notifications created while seeding are noise for the demo accounts.
+        Notification.objects.filter(restaurant=self.restaurant).delete()
+
+    def seed_camera(self):
+        """One camera on the first webcam (device 0) with a 2x2 grid of zones for T1-T4. Edit the source under Settings."""
+        camera, created = Camera.objects.get_or_create(
+            restaurant=self.restaurant, name="Main hall",
+            defaults={"source_type": Camera.SourceType.DEVICE, "source": "0", "detection_interval_seconds": 2},
         )
         if created:
-            for order, text in enumerate(items, start=1):
-                template.items.create(order=order, text=text)
-        return template
-
-    def seed_tasks(self, users, equipment):
-        """One open maintenance task (the seeded defect is left for the demo's "convert to task" step)."""
-        if MaintenanceTask.objects.exists():
-            return
-        maintenance_services.create_task(
-            equipment=equipment["EQ-003"],
-            title="Replace spindle coolant filter",
-            description="Coolant flow looked weak during the last shift. Replace the filter cartridge and check flow.",
-            priority=MaintenanceTask.Priority.MEDIUM,
-            due_date=timezone.localdate() + timedelta(days=2),
-            created_by=users["admin_demo"],
-        )
+            grid = {1: [[0.02, 0.02], [0.49, 0.02], [0.49, 0.49], [0.02, 0.49]],
+                    2: [[0.51, 0.02], [0.98, 0.02], [0.98, 0.49], [0.51, 0.49]],
+                    3: [[0.02, 0.51], [0.49, 0.51], [0.49, 0.98], [0.02, 0.98]],
+                    4: [[0.51, 0.51], [0.98, 0.51], [0.98, 0.98], [0.51, 0.98]]}
+            for number, points in grid.items():
+                TableZone.objects.create(camera=camera, table=self.tables[number], points=points)

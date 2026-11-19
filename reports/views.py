@@ -1,58 +1,77 @@
-"""
-Report pages and PDF downloads.
+"""Reports pages and PDF downloads (managers only; checked before anything is generated)."""
+from datetime import timedelta
 
-Authorization runs BEFORE any PDF is generated, using the same visible_to(user)
-querysets as the rest of the app: asking for someone else's inspection by
-changing the id in the URL gives a 404.
-"""
+from django import forms
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
-from equipment.models import Equipment
-from inspections.models import Inspection
+from core.forms import BootstrapFormMixin
+from core.permissions import manager_required
+from tables import services as table_services
+from tables.models import RestaurantTable
 
-from . import services
+from . import analytics, services
 
 
-def pdf_response(pdf_bytes, filename, inline=False):
+class PeriodForm(BootstrapFormMixin, forms.Form):
+    start = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    end = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("start"), cleaned.get("end")
+        if start and end:
+            if end < start:
+                self.add_error("end", "The end date is before the start date.")
+            elif (end - start).days + 1 > analytics.MAX_DAYS:
+                self.add_error("end", f"Choose at most {analytics.MAX_DAYS} days.")
+        return cleaned
+
+
+def chosen_period(request):
+    """Period from the query string (default: the last 7 days including today)."""
+    today = timezone.localdate()
+    form = PeriodForm(request.GET or None, initial={"start": today - timedelta(days=6), "end": today})
+    if form.is_bound and form.is_valid():
+        return form, form.cleaned_data["start"], form.cleaned_data["end"]
+    return form, today - timedelta(days=6), today
+
+
+def pdf_response(pdf_bytes, filename):
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
-    disposition = "inline" if inline else "attachment"
-    response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["Cache-Control"] = "private, no-store"
     return response
 
 
+@manager_required
 def reports_home(request):
-    inspections = (
-        Inspection.objects.visible_to(request.user)
-        .filter(status=Inspection.Status.SUBMITTED)
-        .select_related("equipment", "inspector")
-        .order_by("-submitted_at")[:20]
-    )
-    context = {
-        "inspections": inspections,
-        "equipment_list": Equipment.objects.all(),
-        "default_days": services.DEFAULT_DAYS,
-        "max_days": services.MAX_DAYS,
+    form, start, end = chosen_period(request)
+    report = analytics.operations_report(request.restaurant, start, end)
+    return render(request, "reports/home.html", {
+        "form": form, "report": report, "week": analytics.weekly_totals(report),
+        "peak_labels": [f"{hour:02d}:00" for hour, _ in report.peak_hours],
+        "peak_values": [value for _, value in report.peak_hours],
+        "tables": RestaurantTable.objects.filter(restaurant=request.restaurant).order_by("number"),
+        "stale_tables": [t for t in table_services.with_status(table_services.live_tables(request.restaurant)
+                                                                .filter(is_active=True).order_by("number")) if t.is_stale],
+        "query": request.GET.urlencode(),
         "page_title": "Reports",
-    }
-    return render(request, "reports/home.html", context)
+    })
 
 
-def inspection_report(request, pk):
-    inspection = get_object_or_404(
-        Inspection.objects.visible_to(request.user).select_related("equipment", "template", "inspector"), pk=pk
-    )
-    pdf = services.build_inspection_report(inspection)
-    day = timezone.localtime(inspection.submitted_at or timezone.now()).date().isoformat()
-    filename = services.safe_filename("inspection", inspection.equipment.equipment_code, day)
-    return pdf_response(pdf, filename, inline=request.GET.get("inline") == "1")
+@manager_required
+def operations_pdf(request):
+    _, start, end = chosen_period(request)
+    report = analytics.operations_report(request.restaurant, start, end)
+    pdf = services.build_operations_pdf(request.restaurant, report)
+    return pdf_response(pdf, services.safe_filename("operations", request.restaurant.slug, start, end))
 
 
-def health_report(request, code):
-    equipment = get_object_or_404(Equipment, equipment_code=code)
-    days = services.clamp_days(request.GET.get("days", services.DEFAULT_DAYS))
-    pdf = services.build_health_report(equipment, request.user, days=days)
-    filename = services.safe_filename("health", equipment.equipment_code, timezone.localdate().isoformat())
-    return pdf_response(pdf, filename, inline=request.GET.get("inline") == "1")
+@manager_required
+def table_history_pdf(request, pk):
+    table = get_object_or_404(RestaurantTable.objects.select_related("restaurant", "section"),
+                              pk=pk, restaurant=request.restaurant)
+    pdf = services.build_table_history_pdf(table)
+    return pdf_response(pdf, services.safe_filename("table", table.label, timezone.localdate()))

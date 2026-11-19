@@ -1,0 +1,15 @@
+{# Yes/No table questions (big touch targets). Expects `form` with .questions(). #}
+<div class="check-list">
+  {% for field, question in form.questions %}
+  <div class="check-question">
+    <span class="q-text" id="q-{{ field.name }}">{{ question }}</span>
+    <div class="yesno btn-group" role="radiogroup" aria-labelledby="q-{{ field.name }}">
+      {% for radio in field %}
+        <input type="radio" class="btn-check" name="{{ radio.data.name }}" id="{{ radio.id_for_label }}" value="{{ radio.data.value }}"{% if radio.data.selected %} checked{% endif %} autocomplete="off">
+        <label class="btn btn-outline-secondary {% if radio.data.value == '1' %}btn-yes{% else %}btn-no{% endif %}" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+  {% endfor %}
+</div>

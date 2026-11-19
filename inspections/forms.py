@@ -1,166 +1,126 @@
 from django import forms
-from django.contrib.auth.models import User
-from django.db.models import Q
-from django.forms import inlineformset_factory, modelformset_factory
-from django.utils import timezone
 
-from accounts.models import Role
 from core.forms import BootstrapFormMixin
-from equipment.models import Equipment
+from tables.models import Cleanliness, TableStatus
 
 from . import services
-from .models import ChecklistItem, Defect, Inspection, InspectionResponse, InspectionTemplate
+from .models import TableInspection
+from .photos import process_photo
 
-Outcome = InspectionResponse.Outcome
+YES_NO = [("1", "Yes"), ("0", "No")]
+MAX_PHOTOS = 3
+
+# (field name, question) in the order staff answer them.
+QUESTIONS = [
+    ("customers_present", "Are customers sitting at the table?"),
+    ("plates_present", "Are plates on the table?"),
+    ("glasses_present", "Are glasses on the table?"),
+    ("leftovers_present", "Is there leftover food?"),
+    ("table_clean", "Is the table surface clean?"),
+    ("chairs_arranged", "Are the chairs arranged?"),
+    ("ready_for_next", "Is the table ready for the next customers?"),
+]
 
 
-class ResponseForm(BootstrapFormMixin, forms.ModelForm):
-    """One checklist line on the 'perform inspection' page."""
+def yes_no(value):
+    """Python bool -> the radio value used by the forms."""
+    return "1" if value else "0"
 
-    outcome = forms.ChoiceField(choices=Outcome.choices, required=False, widget=forms.RadioSelect)
-    photo_upload = forms.FileField(
-        required=False,
-        label="Photo",
-        widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp", "capture": "environment"}),
-    )
 
-    class Meta:
-        model = InspectionResponse
-        fields = ["outcome", "remarks"]
-        widgets = {"remarks": forms.Textarea(attrs={"rows": 2, "placeholder": "Remarks (required for Fail or Needs attention)"})}
+def yes_no_field(label):
+    return forms.TypedChoiceField(label=label, choices=YES_NO, coerce=lambda v: v == "1", widget=forms.RadioSelect)
 
-    def clean_photo_upload(self):
-        uploaded = self.cleaned_data.get("photo_upload")
-        if not uploaded:
-            return None
-        return services.process_photo(uploaded)  # raises ValidationError for bad files
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultiplePhotoField(forms.FileField):
+    """Up to MAX_PHOTOS images, each validated and cleaned by process_photo()."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "image/jpeg,image/png,image/webp", "capture": "environment"}))
+        kwargs.setdefault("required", False)
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        files = data if isinstance(data, (list, tuple)) else ([data] if data else [])
+        if len(files) > MAX_PHOTOS:
+            raise forms.ValidationError(f"Attach at most {MAX_PHOTOS} photos.")
+        return [process_photo(super(MultiplePhotoField, self).clean(f, initial)) for f in files]
+
+
+class TableCheckForm(BootstrapFormMixin, forms.Form):
+    """The seven questions about a table. Used for inspections and for completing tasks."""
+
+    customers_present = yes_no_field("Customers seated")
+    plates_present = yes_no_field("Plates on the table")
+    glasses_present = yes_no_field("Glasses on the table")
+    leftovers_present = yes_no_field("Leftover food")
+    table_clean = yes_no_field("Table surface clean")
+    chairs_arranged = yes_no_field("Chairs arranged")
+    ready_for_next = yes_no_field("Ready for the next customers")
+    remarks = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Anything worth noting"}))
+
+    def questions(self):
+        return [(self[name], text) for name, text in QUESTIONS]
+
+    def answers(self):
+        return {name: self.cleaned_data[name] for name, _ in QUESTIONS}
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("outcome") in services.REMARKS_REQUIRED_FOR and not (cleaned.get("remarks") or "").strip():
-            self.add_error("remarks", "Remarks are required for Fail and Needs attention.")
+        if all(name in cleaned for name, _ in QUESTIONS):
+            for problem in services.contradictions({name: cleaned[name] for name, _ in QUESTIONS}):
+                self.add_error(None, problem)
         return cleaned
 
-    def save(self, commit=True):
-        response = super().save(commit=False)
-        clean_photo = self.cleaned_data.get("photo_upload")
-        if clean_photo is not None:
-            if response.photo:
-                response.photo.delete(save=False)  # replace: remove the old file
-            response.photo.save("photo.jpg", clean_photo, save=False)
-        if commit:
-            response.save()
-        return response
+
+class InspectionForm(TableCheckForm):
+    photos = MultiplePhotoField(label="Photos (optional)", help_text="JPEG, PNG or WebP, max 5 MB each, up to 3.")
 
 
-ResponseFormSet = modelformset_factory(InspectionResponse, form=ResponseForm, extra=0, can_delete=False)
+def initial_from_table(table):
+    """Pre-fill the answers with what the system currently believes, so staff only change what differs."""
+    clean = table.cleanliness == Cleanliness.CLEAN
+    dishes = table.cleanliness == Cleanliness.NEEDS_CLEARING
+    return {
+        "customers_present": yes_no(table.is_occupied),
+        "plates_present": yes_no(dishes),
+        "glasses_present": yes_no(dishes),
+        "leftovers_present": "0",
+        "table_clean": yes_no(clean),
+        "chairs_arranged": yes_no(clean),
+        "ready_for_next": yes_no(getattr(table, "status", None) in (TableStatus.READY, TableStatus.RESERVED)),
+    }
 
 
-class InspectionRemarksForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = Inspection
-        fields = ["remarks"]
-        widgets = {"remarks": forms.Textarea(attrs={"rows": 3, "placeholder": "Anything else the next person should know"})}
+# The three one-tap answers on the check page (the detailed questions stay available below them).
+QUICK_CHECKS = {
+    "seated": {"customers_present": True, "plates_present": False, "glasses_present": False, "leftovers_present": False,
+               "table_clean": True, "chairs_arranged": True, "ready_for_next": False},
+    "dirty": {"customers_present": False, "plates_present": True, "glasses_present": True, "leftovers_present": False,
+              "table_clean": False, "chairs_arranged": False, "ready_for_next": False},
+    "ready": {"customers_present": False, "plates_present": False, "glasses_present": False, "leftovers_present": False,
+              "table_clean": True, "chairs_arranged": True, "ready_for_next": True},
+}
 
-
-def assignable_users():
-    """Active inspectors (and admins, who may also be assigned)."""
-    return User.objects.filter(is_active=True).filter(
-        Q(profile__role__in=[Role.INSPECTOR, Role.ADMIN]) | Q(is_superuser=True)
-    ).order_by("username")
-
-
-class AssignInspectionForm(BootstrapFormMixin, forms.Form):
-    equipment = forms.ModelChoiceField(queryset=Equipment.objects.active())
-    template = forms.ModelChoiceField(
-        queryset=InspectionTemplate.objects.active(), label="Checklist template"
-    )
-    inspector = forms.ModelChoiceField(queryset=User.objects.none(), label="Assign to")
-    due_date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["inspector"].queryset = assignable_users()
-        self.fields["inspector"].label_from_instance = lambda u: f"{u.get_full_name() or u.username} ({u.username})"
-        self.fields["template"].label_from_instance = (
-            lambda t: f"{t.name} ({t.get_equipment_type_display() or 'general'})"
-        )
-
-    def clean_due_date(self):
-        due = self.cleaned_data.get("due_date")
-        if due and due < timezone.localdate():
-            raise forms.ValidationError("The due date cannot be in the past.")
-        return due
+# Pre-filled answers when a waiter completes a task: the table should now be clear and ready.
+AFTER_CLEANING = {
+    "customers_present": "0", "plates_present": "0", "glasses_present": "0", "leftovers_present": "0",
+    "table_clean": "1", "chairs_arranged": "1", "ready_for_next": "1",
+}
 
 
 class InspectionFilterForm(BootstrapFormMixin, forms.Form):
-    STATUS_CHOICES = [("open", "Open (assigned + in progress)"), ("all", "All statuses"), *Inspection.Status.choices]
+    table = forms.IntegerField(required=False, min_value=1, label="Table number")
+    source = forms.ChoiceField(required=False, choices=[("", "Any source"), *TableInspection.Source.choices])
 
-    status = forms.ChoiceField(choices=STATUS_CHOICES, required=False)
-    result = forms.ChoiceField(choices=[("", "Any result"), *Inspection.Result.choices], required=False)
-    equipment = forms.ChoiceField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        codes = Equipment.objects.values_list("equipment_code", flat=True)
-        self.fields["equipment"].choices = [("", "All equipment")] + [(c, c) for c in codes]
-
-    def filter(self, queryset):
+    def filter(self, inspections):
         if not self.is_valid():
-            return queryset.open()
-        data = self.cleaned_data
-        status = data["status"] or "open"
-        if status == "open":
-            queryset = queryset.open()
-        elif status != "all":
-            queryset = queryset.filter(status=status)
-        if data["result"]:
-            queryset = queryset.filter(overall_result=data["result"])
-        if data["equipment"]:
-            queryset = queryset.filter(equipment__equipment_code=data["equipment"])
-        return queryset
-
-
-class DefectFilterForm(BootstrapFormMixin, forms.Form):
-    status = forms.ChoiceField(
-        choices=[("unresolved", "Unresolved (open + in maintenance)"), ("all", "All statuses"), *Defect.Status.choices],
-        required=False,
-    )
-    severity = forms.ChoiceField(choices=[("", "Any severity"), *Defect.Severity.choices], required=False)
-
-    def filter(self, queryset):
-        if not self.is_valid():
-            return queryset.unresolved()
-        status = self.cleaned_data["status"] or "unresolved"
-        if status == "unresolved":
-            queryset = queryset.unresolved()
-        elif status != "all":
-            queryset = queryset.filter(status=status)
-        if self.cleaned_data["severity"]:
-            queryset = queryset.filter(severity=self.cleaned_data["severity"])
-        return queryset
-
-
-class TemplateForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = InspectionTemplate
-        fields = ["name", "equipment_type", "description", "is_active"]
-        widgets = {"description": forms.Textarea(attrs={"rows": 2})}
-
-
-class ChecklistItemForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = ChecklistItem
-        fields = ["order", "text"]
-        widgets = {"order": forms.NumberInput(attrs={"min": 0, "style": "max-width: 90px"})}
-
-
-ChecklistItemFormSet = inlineformset_factory(
-    InspectionTemplate,
-    ChecklistItem,
-    form=ChecklistItemForm,
-    extra=3,
-    can_delete=True,
-    min_num=1,
-    validate_min=True,
-)
+            return inspections
+        if self.cleaned_data["table"]:
+            inspections = inspections.filter(table__number=self.cleaned_data["table"])
+        if self.cleaned_data["source"]:
+            inspections = inspections.filter(source=self.cleaned_data["source"])
+        return inspections

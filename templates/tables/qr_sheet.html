@@ -1,0 +1,48 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }} · {{ APP_NAME }}</title>
+  {% include "partials/head_assets.html" %}
+  <style>
+    body { background: var(--rs-bg); padding: 16px; }
+    .sheet-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; max-width: 860px; margin: 0 auto 16px; }
+    .sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; max-width: 860px; margin: 0 auto; }
+    .qr-card { background: #fff; border: 2px solid var(--rs-charcoal); border-radius: 10px; padding: 14px; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+    .qr-card img { width: 170px; height: 170px; }
+    .qr-app { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rs-muted); }
+    .qr-number { font-size: 34px; font-weight: 800; line-height: 1; margin: 4px 0; }
+    .qr-meta { font-size: 13px; color: #374151; }
+    .qr-hint { font-size: 11px; color: var(--rs-muted); margin-top: 4px; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .sheet-toolbar { display: none; }
+      .sheet { grid-template-columns: repeat(3, 1fr); max-width: none; gap: 6mm; }
+      @page { margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet-toolbar">
+    <div><strong>{{ labels|length }} table QR code{{ labels|pluralize }}</strong> <span class="text-body-secondary">ready to print</span></div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'tables:manage' %}">Back</a>
+      <button class="btn btn-primary" type="button" onclick="window.print()"><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    </div>
+  </div>
+  <div class="sheet">
+    {% for t in labels %}
+    <div class="qr-card">
+      <div class="qr-app">{{ APP_NAME }}</div>
+      <img src="{% url 'tables:qr_png' t.pk %}" alt="QR code for table {{ t.label }}">
+      <div class="qr-number">{{ t.label }}</div>
+      <div class="qr-meta">{{ t.section.name }} · {{ t.capacity }} seats</div>
+      <div class="qr-hint">Staff: scan to inspect · sign-in required</div>
+    </div>
+    {% empty %}
+    <p>No active tables selected.</p>
+    {% endfor %}
+  </div>
+</body>
+</html>

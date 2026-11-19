@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="page-header">
+  <div><h2>{{ request.restaurant.name }}</h2></div>
+  <div class="page-actions">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#walkInDrawer" aria-controls="walkInDrawer"><i class="bi bi-plus-lg" aria-hidden="true"></i> Walk-in</button>
+    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#bookingDrawer" aria-controls="bookingDrawer"><i class="bi bi-plus-lg" aria-hidden="true"></i> Booking</button>
+    <a class="btn btn-outline-secondary" href="{% url 'reservations:list' %}"><i class="bi bi-calendar-event" aria-hidden="true"></i> All bookings</a>
+  </div>
+</div>
+
+<div id="floorScreen" data-live-fragment="{% url 'core:fragment_overview' %}" data-live-topics="tables tasks reservations">
+  {% include "core/_floor_live.html" %}
+</div>
+
+{% include "core/_drawers.html" %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/floor.js' %}"></script>{% endblock %}

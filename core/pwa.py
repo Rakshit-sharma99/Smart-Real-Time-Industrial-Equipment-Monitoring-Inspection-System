@@ -31,7 +31,7 @@ def manifest(request):
     data = {
         "name": settings.APP_NAME,
         "short_name": settings.APP_NAME,
-        "description": "Equipment monitoring and inspection (simulated sensor data).",
+        "description": "Restaurant table monitoring, waiter tasks and reservations.",
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
@@ -49,7 +49,7 @@ def manifest(request):
 def service_worker(request):
     script = render_to_string(
         "pwa/sw.js",
-        {"cache_name": f"equipwatch-static-{static_version()}", "static_url": settings.STATIC_URL,
+        {"cache_name": f"restaurantspy-static-{static_version()}", "static_url": settings.STATIC_URL,
          "offline_url": static("offline.html")},
     )
     response = HttpResponse(script, content_type="application/javascript")

@@ -5,6 +5,12 @@ from . import views
 app_name = "core"
 
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
+    path("", views.home, name="home"),
+    path("manager/", views.manager_dashboard, name="manager_dashboard"),
+    path("manager/live/overview/", views.fragment_overview, name="fragment_overview"),
     path("settings/", views.settings_home, name="settings"),
+    path("settings/restaurant/", views.restaurant_settings, name="restaurant_settings"),
+    path("settings/sections/", views.sections, name="sections"),
+    path("settings/sections/new/", views.section_edit, name="section_create"),
+    path("settings/sections/<int:pk>/", views.section_edit, name="section_edit"),
 ]

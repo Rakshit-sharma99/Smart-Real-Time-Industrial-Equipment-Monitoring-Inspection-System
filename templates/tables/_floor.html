@@ -1,0 +1,13 @@
+{# The floor plan: tables grouped by section. Rendered inside a live fragment. #}
+{% if floor_sections %}
+  {% for section, rows in floor_sections %}
+  <section class="floor-section" aria-label="{{ section.name }}">
+    <h3 class="floor-section-title">{{ section.name }}{% if section.floor %} · {{ section.floor }}{% endif %} <span class="fw-normal">({{ rows|length }})</span></h3>
+    <div class="floor-grid">
+      {% for t in rows %}{% include "partials/table_tile.html" %}{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-grid-3x3-gap" title="No tables match" text="Clear a filter to see more tables." %}
+{% endif %}

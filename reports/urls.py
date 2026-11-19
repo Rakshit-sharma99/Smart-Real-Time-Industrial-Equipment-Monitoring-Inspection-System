@@ -6,6 +6,6 @@ app_name = "reports"
 
 urlpatterns = [
     path("", views.reports_home, name="home"),
-    path("inspection/<int:pk>.pdf", views.inspection_report, name="inspection_pdf"),
-    path("equipment/<slug:code>/health.pdf", views.health_report, name="health_pdf"),
+    path("operations.pdf", views.operations_pdf, name="operations_pdf"),
+    path("table/<int:pk>.pdf", views.table_history_pdf, name="table_pdf"),
 ]

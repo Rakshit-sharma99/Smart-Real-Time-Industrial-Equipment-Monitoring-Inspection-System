@@ -1,136 +1,84 @@
 import uuid
-from collections import Counter
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 
-from core.permissions import is_admin
-from equipment.models import Equipment
+from core.permissions import is_manager
+from tables.models import RestaurantTable, TableStatus
 
 
-class InspectionTemplateQuerySet(models.QuerySet):
-    def active(self):
-        return self.filter(is_active=True)
+class TableInspectionQuerySet(models.QuerySet):
+    def for_restaurant(self, restaurant):
+        return self.filter(table__restaurant=restaurant)
 
-    def template_for(self, equipment):
-        """
-        The checklist to use for a machine: an active template for its type,
-        otherwise an active general template (no type). None if neither exists.
-        """
-        active = self.active()
-        return (
-            active.filter(equipment_type=equipment.equipment_type).order_by("name").first()
-            or active.filter(equipment_type="").order_by("name").first()
-        )
+    def visible_to(self, user, restaurant):
+        """Managers see every inspection of their restaurant; other staff see their own."""
+        inspections = self.for_restaurant(restaurant)
+        if is_manager(user):
+            return inspections
+        return inspections.filter(inspector=user)
 
 
-class InspectionTemplate(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    equipment_type = models.CharField(
-        max_length=30,
-        choices=Equipment.EquipmentType.choices,
-        blank=True,
-        help_text="Leave blank for a general checklist that fits any machine.",
-    )
-    description = models.TextField(blank=True)
-    is_active = models.BooleanField("Active", default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+class TableInspection(models.Model):
+    """
+    One look at a table: who is sitting there and what is on it.
 
-    objects = InspectionTemplateQuerySet.as_manager()
+    Sources: a staff member (usually after scanning the table's QR code), the
+    check a waiter fills in when completing a task, or an external camera /
+    computer-vision service posting to the detection API.
+    """
 
-    class Meta:
-        ordering = ["name"]
+    class Source(models.TextChoices):
+        MANUAL = "MANUAL", "Staff inspection"
+        TASK = "TASK", "Task completion check"
+        CAMERA = "CAMERA", "Camera detection (external service)"
 
-    def __str__(self):
-        return self.name
-
-
-class ChecklistItem(models.Model):
-    template = models.ForeignKey(InspectionTemplate, on_delete=models.CASCADE, related_name="items")
-    order = models.PositiveSmallIntegerField(default=0)
-    text = models.CharField(max_length=255)
-
-    class Meta:
-        ordering = ["order", "id"]
-
-    def __str__(self):
-        return self.text
-
-
-class InspectionQuerySet(models.QuerySet):
-    def visible_to(self, user):
-        """Object-level access: admins see every inspection, inspectors only their own."""
-        if is_admin(user):
-            return self.all()
-        return self.filter(inspector=user)
-
-    def open(self):
-        return self.filter(status__in=Inspection.OPEN_STATUSES)
-
-
-class Inspection(models.Model):
-    class Status(models.TextChoices):
-        ASSIGNED = "ASSIGNED", "Assigned"
-        IN_PROGRESS = "IN_PROGRESS", "In progress"
-        SUBMITTED = "SUBMITTED", "Submitted"
-
-    class Result(models.TextChoices):
-        PASS = "PASS", "Pass"
-        FAIL = "FAIL", "Fail"
-        ATTENTION = "ATTENTION", "Needs attention"
-
-    OPEN_STATUSES = (Status.ASSIGNED, Status.IN_PROGRESS)
-
-    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT, related_name="inspections")
-    template = models.ForeignKey(InspectionTemplate, on_delete=models.PROTECT, related_name="inspections")
+    table = models.ForeignKey(RestaurantTable, on_delete=models.PROTECT, related_name="inspections")
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.MANUAL)
     inspector = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inspections"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="table_inspections"
     )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="inspections_created"
+    task = models.ForeignKey(
+        "tasks.WaiterTask", on_delete=models.SET_NULL, null=True, blank=True, related_name="inspections"
     )
-    status = models.CharField(max_length=15, choices=Status.choices, default=Status.ASSIGNED)
-    due_date = models.DateField(null=True, blank=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    submitted_at = models.DateTimeField(null=True, blank=True)
-    overall_result = models.CharField(max_length=10, choices=Result.choices, blank=True)
-    remarks = models.TextField("Overall remarks", blank=True)
+    device_id = models.CharField(max_length=60, blank=True, help_text="Camera / device that sent a detection.")
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    applied = models.BooleanField(default=True, help_text="False when a low-confidence detection was only recorded.")
+    dishes_checked = models.BooleanField(default=True, help_text="False when the source could not look for dishes.")
+
+    customers_present = models.BooleanField("Customers seated")
+    plates_present = models.BooleanField("Plates on the table")
+    glasses_present = models.BooleanField("Glasses on the table")
+    leftovers_present = models.BooleanField("Leftover food")
+    # A camera cannot judge these two, so they are optional (null = not checked).
+    table_clean = models.BooleanField("Table surface clean", null=True, blank=True)
+    chairs_arranged = models.BooleanField("Chairs arranged", null=True, blank=True)
+    ready_for_next = models.BooleanField("Ready for the next customers", default=False)
+    remarks = models.TextField(blank=True)
+
+    resulting_status = models.CharField(max_length=25, choices=TableStatus.choices, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
-    objects = InspectionQuerySet.as_manager()
+    objects = TableInspectionQuerySet.as_manager()
 
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [
-            models.Index(fields=["inspector", "status"], name="inspection_inspector_status"),
-            models.Index(fields=["equipment", "-created_at"], name="inspection_equipment_time"),
+            models.Index(fields=["table", "-created_at"], name="inspection_table_time"),
+            models.Index(fields=["inspector", "-created_at"], name="inspection_inspector_time"),
         ]
 
     def __str__(self):
-        return f"{self.reference} {self.equipment.equipment_code}"
+        return f"{self.reference} {self.table}"
 
     @property
     def reference(self):
-        return f"INS-{self.pk:05d}" if self.pk else "INS-new"
+        return f"IN-{self.pk:05d}" if self.pk else "IN-new"
 
     @property
-    def is_submitted(self):
-        return self.status == self.Status.SUBMITTED
-
-    @property
-    def is_adhoc(self):
-        return self.created_by_id == self.inspector_id
-
-    @property
-    def is_overdue(self):
-        return bool(self.due_date and not self.is_submitted and self.due_date < timezone.localdate())
-
-    def outcome_counts(self):
-        """{"PASS": n, "FAIL": n, "NEEDS_ATTENTION": n, "NOT_APPLICABLE": n}."""
-        counts = Counter(self.responses.values_list("outcome", flat=True))
-        return {outcome: counts.get(outcome, 0) for outcome in InspectionResponse.Outcome.values}
+    def dishes_present(self):
+        return self.plates_present or self.glasses_present or self.leftovers_present
 
 
 def photo_upload_path(instance, filename):
@@ -138,70 +86,13 @@ def photo_upload_path(instance, filename):
     return f"inspection_photos/{timezone.now():%Y/%m}/{uuid.uuid4().hex}.jpg"
 
 
-class InspectionResponse(models.Model):
-    """One checklist line of one inspection. The item text is copied when the inspection starts."""
-
-    class Outcome(models.TextChoices):
-        PASS = "PASS", "Pass"
-        FAIL = "FAIL", "Fail"
-        NEEDS_ATTENTION = "NEEDS_ATTENTION", "Needs attention"
-        NOT_APPLICABLE = "NOT_APPLICABLE", "N/A"
-
-    inspection = models.ForeignKey(Inspection, on_delete=models.CASCADE, related_name="responses")
-    order = models.PositiveSmallIntegerField(default=0)
-    item_text = models.CharField(max_length=255)
-    outcome = models.CharField(max_length=20, choices=Outcome.choices, blank=True)
-    remarks = models.TextField(blank=True)
-    photo = models.ImageField(upload_to=photo_upload_path, blank=True)
-
-    class Meta:
-        ordering = ["order", "id"]
-
-    def __str__(self):
-        return f"{self.inspection.reference} #{self.order}: {self.item_text}"
-
-
-class DefectQuerySet(models.QuerySet):
-    def visible_to(self, user):
-        if is_admin(user):
-            return self.all()
-        return self.filter(inspection__inspector=user)
-
-    def unresolved(self):
-        """OPEN or IN_MAINTENANCE - a defect counts until its maintenance task is completed."""
-        return self.exclude(status=Defect.Status.CLOSED)
-
-
-class Defect(models.Model):
-    class Severity(models.TextChoices):
-        LOW = "LOW", "Low"
-        MEDIUM = "MEDIUM", "Medium"
-        HIGH = "HIGH", "High"
-
-    class Status(models.TextChoices):
-        OPEN = "OPEN", "Open"
-        IN_MAINTENANCE = "IN_MAINTENANCE", "In maintenance"
-        CLOSED = "CLOSED", "Closed"
-
-    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT, related_name="defects")
-    inspection = models.ForeignKey(Inspection, on_delete=models.PROTECT, related_name="defects")
-    response = models.ForeignKey(
-        InspectionResponse, on_delete=models.PROTECT, related_name="defects", null=True, blank=True
-    )
-    description = models.TextField()
-    severity = models.CharField(max_length=10, choices=Severity.choices)
-    status = models.CharField(max_length=15, choices=Status.choices, default=Status.OPEN)
+class TableInspectionPhoto(models.Model):
+    inspection = models.ForeignKey(TableInspection, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to=photo_upload_path)
     created_at = models.DateTimeField(default=timezone.now)
 
-    objects = DefectQuerySet.as_manager()
-
     class Meta:
-        ordering = ["-created_at", "-id"]
-        indexes = [models.Index(fields=["equipment", "status"], name="defect_equipment_status")]
+        ordering = ["created_at", "id"]
 
     def __str__(self):
-        return f"{self.reference} {self.equipment.equipment_code} ({self.severity})"
-
-    @property
-    def reference(self):
-        return f"DF-{self.pk:05d}" if self.pk else "DF-new"
+        return f"Photo {self.pk} of {self.inspection.reference}"

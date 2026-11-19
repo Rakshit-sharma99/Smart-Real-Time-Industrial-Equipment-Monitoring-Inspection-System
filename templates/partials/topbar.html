@@ -1,19 +1,30 @@
-<header class="app-topbar">
+{% load ui %}<header class="app-topbar">
   <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu">
     <i class="bi bi-list" aria-hidden="true"></i>
   </button>
   <h1 class="topbar-title">{{ page_title }}</h1>
   <div class="topbar-actions">
-    <span class="sim-pill" title="All sensor readings come from the built-in simulator, not real hardware">
-      <i class="bi bi-cpu" aria-hidden="true"></i><span class="d-none d-sm-inline">SIMULATED DATA</span><span class="d-sm-none">SIM</span>
-    </span>
-    <span class="live-indicator" id="liveIndicator" data-state="idle" role="status" title="Live updates: idle">
+    {% if offline_cameras %}
+    <a class="camera-alert" href="{% url 'cctv:console' %}" title="{{ offline_cameras|join:', ' }}"><i class="bi bi-camera-video-off" aria-hidden="true"></i><span>{% if offline_cameras|length == 1 %}Camera offline{% else %}{{ offline_cameras|length }} cameras offline{% endif %}</span></a>
+    {% endif %}
+    <span class="live-indicator" id="liveIndicator" data-state="idle" role="status" title="Live page updates (not camera status): idle">
       <span class="live-dot" aria-hidden="true"></span><span class="live-label d-none d-md-inline">Idle</span>
     </span>
+    {% if user_role %}
+    <div class="dropdown">
+      <button class="btn btn-icon bell" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications">
+        <i class="bi bi-bell" aria-hidden="true"></i>
+        <span class="bell-count" data-notification-count{% if not unread_notifications %} hidden{% endif %}>{{ unread_notifications }}</span>
+      </button>
+      <div class="dropdown-menu dropdown-menu-end notification-menu" data-live-fragment="{% url 'notifications:menu' %}" data-live-topics="notifications">
+        {% include "notifications/_menu.html" with notifications=latest_notifications %}
+      </div>
+    </div>
+    {% endif %}
     <div class="dropdown">
       <button class="btn btn-user dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User menu">
         <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
-        <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
+        <span class="d-none d-md-inline">{{ user|person }}</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
         <li><span class="dropdown-item-text small text-body-secondary">Signed in as <strong>{{ user.username }}</strong><br>{{ user_role_label }}</span></li>

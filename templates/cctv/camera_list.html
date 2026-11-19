@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "partials/settings_nav.html" %}
+<div class="toolbar">
+  <p class="text-body-secondary small mb-0">Video sources for Live CCTV. The worker <code>python manage.py run_cameras</code> reads them; credentials in stream URLs stay on the server.</p>
+  <a class="btn btn-primary" href="{% url 'cctv:camera_create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add camera</a>
+</div>
+{% if cameras %}
+<div class="table-wrap"><div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th scope="col">Camera</th><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Detector</th><th scope="col" class="num">Zones</th><th scope="col">Interval / confirm</th><th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for c in cameras %}
+      <tr>
+        <td class="fw-semibold">{{ c.name }}{% if not c.is_active %} <span class="badge text-bg-light border fw-normal">inactive</span>{% endif %}</td>
+        <td><span class="small">{{ c.get_source_type_display }}</span><div class="small text-body-secondary font-mono">{{ c.masked_source }}</div></td>
+        <td><span class="cctv-status st-{{ c.live_status|lower }}">{{ c.get_live_status_display|default:c.live_status }}</span>{% if c.last_error and not c.is_receiving %}<div class="small text-danger">{{ c.last_error|truncatechars:60 }}</div>{% endif %}</td>
+        <td class="small">{{ c.detector_name|default:"—" }}{% if c.detector_name %}<div class="text-body-secondary">dishes {% if c.detects_dishes %}yes{% else %}no{% endif %}</div>{% endif %}</td>
+        <td class="num">{{ c.zones.count }}</td>
+        <td class="small">{{ c.detection_interval_seconds }} s · {{ c.frames_to_confirm }} samples · min {{ c.min_confidence }}</td>
+        <td class="text-end text-nowrap">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'cctv:zones' c.pk %}">Zones</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'cctv:camera_edit' c.pk %}">Edit</a>
+          <form class="d-inline" method="post" action="{% url 'cctv:camera_delete' c.pk %}" data-confirm="Remove camera '{{ c.name }}' and its zones?" data-confirm-button="Remove">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Remove</button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% else %}
+  {% url 'cctv:camera_create' as create_url %}
+  {% include "partials/empty_state.html" with icon="bi-camera-video" title="No cameras yet" text="Add an RTSP/IP camera, a webcam (device 0) or a demo video file." action_url=create_url action_label="Add camera" %}
+{% endif %}
+<div class="card mt-3"><div class="card-body small">
+  <strong>Running the video worker.</strong> In a second terminal: <code>python manage.py run_cameras</code> (or <code>--camera ID</code> for one camera, <code>--once</code> to test). It uses <em>OpenCV's built-in people detector</em> out of the box (occupancy only). Install <code>ultralytics</code> to also detect tableware. Nothing in this app guesses a table is clean: cameras can mark tables occupied, empty or "dishes remaining"; a person confirms Ready.
+</div></div>
+{% endblock %}

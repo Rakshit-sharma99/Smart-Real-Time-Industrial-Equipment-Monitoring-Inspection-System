@@ -1,0 +1,34 @@
+{% load ui %}{# The waiter's one screen: my tasks (one big Done) and my tables (tap to check). Rendered inside a live fragment. #}
+<h3 class="zone-title">My tasks {% if my_tasks %}<span class="zone-count">{{ my_tasks|length }}</span>{% endif %} <span class="ms-auto text-lowercase fw-normal">{{ done_today }} done today</span></h3>
+{% for task in my_tasks %}
+<div class="wtask{% if task.is_overdue %} is-overdue{% endif %}">
+  <div class="wtask-head">
+    <span class="wtask-table">{{ task.table.label }}</span>
+    <span class="wtask-due">{% if task.due_at %}{{ task|due_label }}{% endif %}</span>
+  </div>
+  <div class="wtask-what">{{ task.get_task_type_display }}{% if task.priority == "URGENT" or task.priority == "HIGH" %} · <strong>{{ task.get_priority_display }}</strong>{% endif %}</div>
+  {% if task.description %}<p class="wtask-note">{{ task.description }}</p>{% endif %}
+  <form method="post" action="{% url 'tasks:done' task.pk %}" data-once>
+    {% csrf_token %}
+    <button class="btn btn-primary btn-done" type="submit"><i class="bi bi-check-lg" aria-hidden="true"></i> Done</button>
+  </form>
+  <a class="wtask-more" href="{% url 'tasks:detail' task.pk %}">Not finished, or something's wrong?</a>
+</div>
+{% empty %}
+<div class="empty-state mb-4">
+  <span class="empty-art" aria-hidden="true"><i class="bi bi-check2-all"></i></span>
+  <p class="empty-title">No tasks right now</p>
+  <p class="empty-text mb-0">New tasks appear here by themselves.</p>
+</div>
+{% endfor %}
+
+<h3 class="zone-title mt-4">My tables <span class="ms-auto text-lowercase fw-normal">tap a table to update it</span></h3>
+{% if my_tables %}
+<div class="floor-grid waiter-grid">{% for t in my_tables %}{% include "partials/table_tile.html" with check_links=True %}{% endfor %}</div>
+{% else %}
+<div class="empty-state">
+  <span class="empty-art" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>
+  <p class="empty-title">No tables assigned to you</p>
+  <a class="btn btn-primary" href="{% url 'inspections:scanner' %}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan a table</a>
+</div>
+{% endif %}

@@ -1,53 +1,26 @@
 from django.contrib import admin
 
-from .models import ChecklistItem, Defect, Inspection, InspectionResponse, InspectionTemplate
+from .models import TableInspection, TableInspectionPhoto
 
 
-class ChecklistItemInline(admin.TabularInline):
-    model = ChecklistItem
-    extra = 1
-
-
-@admin.register(InspectionTemplate)
-class InspectionTemplateAdmin(admin.ModelAdmin):
-    list_display = ("name", "equipment_type", "is_active", "created_at")
-    list_filter = ("is_active", "equipment_type")
-    search_fields = ("name", "description")
-    inlines = [ChecklistItemInline]
-
-
-@admin.register(ChecklistItem)
-class ChecklistItemAdmin(admin.ModelAdmin):
-    list_display = ("template", "order", "text")
-    list_filter = ("template",)
-    search_fields = ("text",)
-
-
-class InspectionResponseInline(admin.TabularInline):
-    model = InspectionResponse
+class PhotoInline(admin.TabularInline):
+    model = TableInspectionPhoto
     extra = 0
-    fields = ("order", "item_text", "outcome", "remarks", "photo")
 
 
-@admin.register(Inspection)
-class InspectionAdmin(admin.ModelAdmin):
-    list_display = ("id", "equipment", "inspector", "status", "overall_result", "due_date", "submitted_at")
-    list_filter = ("status", "overall_result", "template")
-    search_fields = ("equipment__equipment_code", "equipment__name", "inspector__username", "remarks")
+@admin.register(TableInspection)
+class TableInspectionAdmin(admin.ModelAdmin):
+    list_display = ("reference", "table", "source", "inspector", "customers_present", "resulting_status",
+                    "applied", "created_at")
+    list_filter = ("source", "resulting_status", "applied", "table__restaurant")
+    search_fields = ("table__number", "remarks", "device_id", "inspector__username")
     date_hierarchy = "created_at"
-    raw_id_fields = ("inspector", "created_by")
-    inlines = [InspectionResponseInline]
+    list_select_related = ("table", "inspector")
+    inlines = [PhotoInline]
 
 
-@admin.register(InspectionResponse)
-class InspectionResponseAdmin(admin.ModelAdmin):
-    list_display = ("inspection", "order", "item_text", "outcome")
-    list_filter = ("outcome",)
-    search_fields = ("item_text", "remarks")
-
-
-@admin.register(Defect)
-class DefectAdmin(admin.ModelAdmin):
-    list_display = ("id", "equipment", "severity", "status", "inspection", "created_at")
-    list_filter = ("status", "severity")
-    search_fields = ("equipment__equipment_code", "description")
+@admin.register(TableInspectionPhoto)
+class TableInspectionPhotoAdmin(admin.ModelAdmin):
+    list_display = ("pk", "inspection", "created_at")
+    search_fields = ("inspection__table__number",)
+    list_filter = ()
