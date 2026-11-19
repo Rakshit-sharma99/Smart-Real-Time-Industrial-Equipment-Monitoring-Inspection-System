@@ -213,7 +213,7 @@ def accept(request, pk):
 def start(request, pk):
     task = visible_task(request, pk)
     return run(request, task, lambda: services.start(task, user=request.user),
-               "{task.task_code} started - the table shows Cleaning in progress.")
+               "{task.task_code} started - the table shows Cleaning…")
 
 
 @floor_staff_required
@@ -239,6 +239,35 @@ def complete(request, pk):
     task.refresh_from_db()
     table = table_services.with_status([table_services.live_tables(request.restaurant).get(pk=task.table_id)])[0]
     messages.success(request, f"{task.task_code} completed. {table.label} is now {table.status_label}.")
+    if request.role == Role.WAITER:
+        return redirect("tasks:waiter_home")
+    return redirect(task_url(task))
+
+
+@manager_required
+@require_POST
+def remind(request, pk):
+    """From "Needs you now": nudge the assigned waiter about one task."""
+    task = visible_task(request, pk)
+    if not task.assigned_to or task.status == WaiterTask.Status.COMPLETED:
+        messages.error(request, "Nobody to remind: the task is not assigned or already done.")
+    else:
+        services.remind(task, user=request.user)
+        messages.success(request, f"Reminded {task.assigned_to.first_name or task.assigned_to.username} about {task.table.label}.")
+    return redirect("core:manager_dashboard")
+
+
+@floor_staff_required
+@require_POST
+def done(request, pk):
+    """The waiter's one big button: start the task if needed and finish it with a clean, ready table."""
+    task = visible_task(request, pk)
+    try:
+        services.finish(task, user=request.user)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, f"{task.table.label} is free again.")
     if request.role == Role.WAITER:
         return redirect("tasks:waiter_home")
     return redirect(task_url(task))

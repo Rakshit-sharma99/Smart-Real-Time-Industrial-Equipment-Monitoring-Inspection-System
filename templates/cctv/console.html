@@ -28,16 +28,16 @@
         <span id="cctvMessageText">{% if state.status == "UNKNOWN" %}Waiting for the first frame. Start the worker: <code>python manage.py run_cameras</code>{% else %}No recent frame from this camera.{% endif %}</span>
       </div>
       <div class="cctv-badges">
-        {% if camera.is_demo %}<span class="cctv-badge demo">DEMO VIDEO</span>{% else %}<span class="cctv-badge live" id="cctvLiveBadge">LIVE</span>{% endif %}
+        {% if camera.is_demo %}<span class="cctv-badge demo">DEMO VIDEO</span>{% endif %}<span class="cctv-badge live{% if state.status != "ONLINE" and state.status != "DEMO" %} off{% endif %}{% if camera.is_demo and state.status == "DEMO" %} d-none{% endif %}" id="cctvLiveBadge">{% if state.status == "ONLINE" %}LIVE{% elif state.status == "UNKNOWN" %}NOT STARTED{% else %}OFFLINE{% endif %}</span>
       </div>
     </div>
 
     <div class="cctv-meta">
       <span><strong>{{ camera.name }}</strong> · {{ camera.masked_source }}</span>
-      <span>Last frame: <span id="cctvLastFrame">{% if state.last_frame_at %}just now{% else %}never{% endif %}</span></span>
+      <span id="cctvLastFrame">{% if not camera.last_frame_at %}No frame received yet{% elif state.status == "OFFLINE" %}<span class="cctv-offline-for">Offline for {{ camera.last_frame_at|ago_label }}</span> · last frame {{ camera.last_frame_at|when }}{% else %}Last frame: just now{% endif %}</span>
       <span id="cctvDetector">{% if camera.detector_name %}Detector: {{ camera.detector_name }} · dishes {% if camera.detects_dishes %}detectable{% else %}<em>not detectable</em>{% endif %}{% else %}AI detection: not running{% endif %}</span>
     </div>
-    <p class="small text-body-secondary mb-0">The camera decides occupancy{% if camera.detects_dishes %} and whether dishes remain{% endif %}; a table is marked <strong>Ready</strong> only after a waiter or manager confirms it. Changes apply after {{ camera.frames_to_confirm }} consecutive matching samples ({{ camera.detection_interval_seconds }} s apart).</p>
+    <p class="small text-body-secondary mb-0">The camera decides occupancy{% if camera.detects_dishes %} and whether dishes remain{% endif %}; a table is marked <strong>Free</strong> only after a waiter or manager confirms it. Changes apply after {{ camera.frames_to_confirm }} consecutive matching samples ({{ camera.detection_interval_seconds }} s apart).</p>
   </div>
 
   <aside class="cctv-side">

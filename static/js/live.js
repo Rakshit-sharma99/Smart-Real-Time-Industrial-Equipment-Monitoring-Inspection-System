@@ -39,7 +39,7 @@
 
   // ------------------------------------------------------------------ indicator
   const LABELS = {
-    idle: "Idle", connecting: "Connecting…", live: "Live",
+    idle: "Idle", connecting: "Connecting…", live: "Updates on",
     polling: '<span class="d-none d-md-inline">Live updates: </span>polling', offline: "Offline",
   };
   const TITLES = {

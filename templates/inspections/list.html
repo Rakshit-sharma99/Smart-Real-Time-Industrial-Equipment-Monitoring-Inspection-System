@@ -25,7 +25,7 @@
       <tr>
         <td><a class="fw-semibold" href="{% url 'inspections:detail' i.pk %}">{{ i.reference }}</a></td>
         <td><a href="{{ i.table.get_absolute_url }}">{{ i.table.label }}</a></td>
-        <td class="text-nowrap small">{{ i.created_at|date:"d M H:i" }}</td>
+        <td class="text-nowrap small">{{ i.created_at|when }}</td>
         <td>{% if i.inspector %}{{ i.inspector|person }}{% else %}{{ i.get_source_display }}{% endif %}</td>
         <td>{{ i.customers_present|yesno:"Yes,No" }}</td>
         <td>{{ i.dishes_present|yesno:"Yes,No" }}</td>

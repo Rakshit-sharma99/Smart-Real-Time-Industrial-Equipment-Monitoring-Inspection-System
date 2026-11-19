@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from core.forms import BootstrapFormMixin
 from core.permissions import manager_required
+from tables import services as table_services
 from tables.models import RestaurantTable
 
 from . import analytics, services
@@ -53,6 +54,8 @@ def reports_home(request):
         "peak_labels": [f"{hour:02d}:00" for hour, _ in report.peak_hours],
         "peak_values": [value for _, value in report.peak_hours],
         "tables": RestaurantTable.objects.filter(restaurant=request.restaurant).order_by("number"),
+        "stale_tables": [t for t in table_services.with_status(table_services.live_tables(request.restaurant)
+                                                                .filter(is_active=True).order_by("number")) if t.is_stale],
         "query": request.GET.urlencode(),
         "page_title": "Reports",
     })

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static ui %}
 {% block content %}
 <div class="page-header">
   <div><h2>Reports</h2><p class="subtitle">{{ report.start_date|date:"d M Y" }} – {{ report.end_date|date:"d M Y" }} · {{ report.days }} day{{ report.days|pluralize }}</p></div>
@@ -11,6 +11,16 @@
   <div class="filter-actions"><button class="btn btn-primary" type="submit">Apply</button></div>
   {% for error in form.end.errors %}<div class="w-100 invalid-feedback d-block">{{ error }}</div>{% endfor %}
 </form>
+{% if stale_tables or report.capped_sittings %}
+<div class="alert alert-warning d-flex gap-2" role="alert">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    {% if stale_tables %}<strong>Stale tables – please verify:</strong>
+    {% for t in stale_tables %}<a class="alert-link" href="{{ t.get_absolute_url }}">{{ t.label }}</a> ({{ t.timer|timer_text|lower }}){% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+    {% if report.capped_sittings %}<div class="small">{{ report.capped_sittings }} sitting{{ report.capped_sittings|pluralize }} in this period lasted longer than {{ request.restaurant.stale_after_minutes|minutes_label }} without anyone confirming {{ report.capped_sittings|pluralize:"it,them" }}; utilisation counts {{ report.capped_sittings|pluralize:"it,each" }} only up to that limit.</div>{% endif %}
+  </div>
+</div>
+{% endif %}
 <p class="small text-body-secondary"><span class="measure-tag measured">Measured</span> counted or timed from recorded events · <span class="measure-tag estimate">Estimate</span> calculated from measured data with a stated assumption.</p>
 
 <div class="row g-3">
@@ -32,7 +42,7 @@
   <div class="col-xl-5">
     <div class="card"><div class="card-header">Peak occupancy <span class="measure-tag estimate">estimate</span></div>
       <div class="card-body"><div class="chart-box"><canvas id="peakChart" role="img" aria-label="Average occupied tables per hour"></canvas></div>
-      <p class="small text-body-secondary mb-0 mt-2">Average number of occupied tables per hour of day, rebuilt from the table audit log.</p></div>
+      <p class="small text-body-secondary mb-0 mt-2">Average number of occupied tables per hour, during opening hours ({{ request.restaurant.opens_at|time:"H:i" }}–{{ request.restaurant.closes_at|time:"H:i" }}), rebuilt from the table audit log.</p></div>
     </div>
     <div class="card"><div class="card-header">Waiter task statistics</div>
       {% if report.waiters %}
@@ -58,7 +68,7 @@
   new Chart(document.getElementById("peakChart"), {
     type: "bar",
     data: { labels: JSON.parse(document.getElementById("peak-labels").textContent),
-            datasets: [{ label: "Occupied tables (avg)", data: JSON.parse(document.getElementById("peak-values").textContent), backgroundColor: "#0f766e" }] },
+            datasets: [{ label: "Seated tables (avg)", data: JSON.parse(document.getElementById("peak-values").textContent), backgroundColor: "#0f766e" }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                scales: { x: { ticks: { maxTicksLimit: 12, color: "#6b7280" }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: "#6b7280" }, grid: { color: "#eeeeeb" } } } }
   });

@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 
 from core.permissions import booking_staff_required
 from tables.views import floor_context
+from core.templatetags.ui import when
 
 from . import services
 from .forms import BookingForm, BookingSearchForm, ReservationFilterForm, WalkInForm
@@ -65,9 +66,16 @@ def desk_context(request, booking_form=None):
     }
 
 
+def back_to_floor(request):
+    """After a walk-in or booking: back to the screen the form was on (the Floor)."""
+    next_url = request.POST.get("next", "")
+    return redirect(next_url if next_url.startswith("/") and not next_url.startswith("//") else "reservations:desk")
+
+
 @booking_staff_required
 def desk(request):
-    return render(request, "reservations/desk.html", {"page_title": "Booking desk", **desk_context(request)})
+    from core.floor import floor_screen
+    return floor_screen(request)
 
 
 @booking_staff_required
@@ -97,10 +105,10 @@ def book(request):
                 form.add_error(field if field in form.fields else None, problems)
         else:
             messages.success(request, f"Booked {reservation.reference}: {reservation.table.label} for "
-                                      f"{reservation.customer_name}, {timezone.localtime(reservation.start_at):%d %b %H:%M}.")
-            return redirect("reservations:desk")
-    context = {"page_title": "Booking desk", **desk_context(request, booking_form=form)}
-    return render(request, "reservations/desk.html", context, status=400)
+                                      f"{reservation.customer_name}, {when(reservation.start_at)}.")
+            return back_to_floor(request)
+    from core.floor import floor_screen
+    return floor_screen(request, booking_form=form, status=400)
 
 
 @booking_staff_required
@@ -120,8 +128,8 @@ def walk_in(request):
         else:
             messages.success(request, f"Walk-in seated at {reservation.table.label} ({reservation.reference}).")
     else:
-        messages.error(request, "Choose a Ready table and the number of guests.")
-    return redirect("reservations:desk")
+        messages.error(request, "Choose a free table and the number of guests.")
+    return back_to_floor(request)
 
 
 # --- Reservation list and detail ---------------------------------------------------------------

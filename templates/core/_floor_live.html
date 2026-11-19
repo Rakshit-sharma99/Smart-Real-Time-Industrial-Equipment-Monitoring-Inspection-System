@@ -1,0 +1,104 @@
+{% load ui %}{# Counts, to-do list and floor. Rendered inside a live fragment; floor.js keeps the chosen filter and section. #}
+<div class="state-strip" role="group" aria-label="Filter the floor by state">
+  <button type="button" class="state-count state-free" data-filter-state="free" aria-pressed="false"><span class="n">{{ stats.free }}</span><span class="l">Free</span></button>
+  <button type="button" class="state-count state-seated" data-filter-state="seated" aria-pressed="false"><span class="n">{{ stats.seated }}</span><span class="l">Seated</span></button>
+  <button type="button" class="state-count state-dirty" data-filter-state="dirty" aria-pressed="false"><span class="n">{{ stats.dirty }}</span><span class="l">Needs cleaning</span></button>
+  <button type="button" class="state-count state-unavailable" data-filter-state="unavailable" aria-pressed="false"><span class="n">{{ stats.unavailable }}</span><span class="l">Unavailable</span></button>
+</div>
+<p class="state-total">{{ stats.total }} tables · {{ stats.seated }} seated ({{ stats.seated_pct }}%)</p>
+
+<div class="floor-layout">
+  <section class="todo" aria-labelledby="todoTitle">
+    {% if todo is not None %}
+    <h3 class="zone-title" id="todoTitle">Needs you now {% if todo %}<span class="zone-count">{{ todo|length }}</span>{% endif %}</h3>
+    {% for item in todo %}
+    <div class="todo-item tone-{{ item.tone }}">
+      <span class="todo-dot" aria-hidden="true"></span>
+      <div class="todo-main">
+        <div class="todo-what"><a href="{{ item.table.get_absolute_url }}">{{ item.table.label }}</a> {{ item.title }} <span class="todo-time">{{ item.minutes|minutes_label }}</span></div>
+        {% if item.who %}<div class="todo-who">{{ item.who }}</div>{% endif %}
+      </div>
+      <div class="todo-actions">
+        {% if item.action == "assign" %}
+          {% if item.table.assigned_waiter %}
+          <form method="post" action="{% url 'tasks:quick_assign' %}">{% csrf_token %}<input type="hidden" name="table" value="{{ item.table.pk }}"><input type="hidden" name="waiter" value="{{ item.table.assigned_waiter_id }}">
+            <button class="btn btn-sm btn-primary" type="submit">Assign {{ item.who }}</button></form>
+          {% endif %}
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:create' %}?table={{ item.table.pk }}">{% if item.table.assigned_waiter %}Other{% else %}Assign{% endif %}</a>
+        {% elif item.action == "remind" %}
+          <form method="post" action="{% url 'tasks:remind' item.task.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Remind</button></form>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:detail' item.task.pk %}#assign">Reassign</a>
+        {% elif item.action == "verify" %}
+          <a class="btn btn-sm btn-primary" href="{% url 'inspections:inspect' item.table.pk %}">Check now</a>
+        {% elif item.action == "set_waiter" %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ item.table.get_absolute_url }}#waiter">Set waiter</a>
+        {% else %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ item.table.get_absolute_url }}">Open</a>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+      <span class="empty-art" aria-hidden="true"><i class="bi bi-cup-hot"></i></span>
+      <p class="empty-title">All good</p>
+      <p class="empty-text">Nothing needs you right now. New problems show up here by themselves.</p>
+    </div>
+    {% endfor %}
+    {% else %}
+    <h3 class="zone-title" id="todoTitle">Arriving soon {% if upcoming %}<span class="zone-count neutral">{{ upcoming|length }}</span>{% endif %}</h3>
+    {% for r in upcoming %}
+    <div class="todo-item{% if r.is_late %} tone-danger{% endif %}">
+      <span class="todo-dot" aria-hidden="true"></span>
+      <div class="todo-main">
+        <div class="todo-what">{{ r.start_at|clock }} · <a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a> · {{ r.party_size }}</div>
+        <div class="todo-who">{{ r.table.label }}{% if r.is_late %} · <span class="text-danger fw-semibold">late</span>{% endif %}</div>
+      </div>
+      <div class="todo-actions">
+        {% if r.status != "SEATED" %}
+        <form method="post" action="{% url 'reservations:change_status' r.pk %}">{% csrf_token %}<input type="hidden" name="to_status" value="SEATED"><input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-sm btn-primary" type="submit">Seat</button></form>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+      <span class="empty-art" aria-hidden="true"><i class="bi bi-calendar2-check"></i></span>
+      <p class="empty-title">No bookings soon</p>
+      <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#walkInDrawer"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add walk-in</button>
+    </div>
+    {% endfor %}
+    {% if seated %}
+    <h3 class="zone-title mt-4">Seated bookings <span class="zone-count neutral">{{ seated|length }}</span></h3>
+    {% for r in seated %}
+    <div class="todo-item">
+      <span class="todo-dot" aria-hidden="true"></span>
+      <div class="todo-main"><div class="todo-what">{{ r.table.label }} · <a href="{% url 'reservations:detail' r.pk %}">{{ r.customer_name }}</a> · {{ r.party_size }}</div><div class="todo-who">since {{ r.seated_at|when }}</div></div>
+      <div class="todo-actions">
+        <form method="post" action="{% url 'reservations:change_status' r.pk %}" data-confirm="Guests at {{ r.table.label }} have left? The table will need cleaning." data-confirm-button="Guests left" data-confirm-tone="primary">{% csrf_token %}<input type="hidden" name="to_status" value="COMPLETED"><input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-sm btn-outline-secondary" type="submit">Left</button></form>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="floor-zone" aria-labelledby="floorTitle">
+    <div class="floor-zone-head">
+      <h3 class="zone-title mb-0" id="floorTitle">Floor plan</h3>
+      <div class="section-tabs" role="tablist" aria-label="Sections">
+        <button type="button" class="section-tab" role="tab" data-filter-section="" aria-selected="true">All</button>
+        {% for section in floor_sections %}<button type="button" class="section-tab" role="tab" data-filter-section="{{ section.pk }}" aria-selected="false">{{ section.name }}</button>{% endfor %}
+      </div>
+    </div>
+    {% if floor_tables %}
+    <div class="floor-grid" id="floorGrid">{% for t in floor_tables %}{% include "partials/table_tile.html" %}{% endfor %}</div>
+    <p class="floor-none text-body-secondary small" hidden>No tables match. <button type="button" class="btn btn-link btn-sm p-0 align-baseline" data-filter-clear>Show all</button></p>
+    {% else %}
+    {% url 'tables:create' as create_url %}
+    <div class="empty-state">
+      <span class="empty-art" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>
+      <p class="empty-title">No tables yet</p>
+      {% if is_manager_user %}<a class="btn btn-primary" href="{{ create_url }}">Add a table</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>

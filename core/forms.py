@@ -32,7 +32,7 @@ class RestaurantForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Restaurant
         fields = ["name", "address", "opens_at", "closes_at", "reservation_minutes",
-                  "reservation_hold_minutes", "cleaning_deadline_minutes"]
+                  "reservation_hold_minutes", "cleaning_deadline_minutes", "stale_after_minutes"]
         widgets = {
             "opens_at": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
             "closes_at": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),

@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from accounts.models import Role
 from core.forms import BootstrapFormMixin
 
-from .models import Cleanliness, RestaurantSection, RestaurantTable, TableStatus
+from .models import Cleanliness, DisplayState, RestaurantSection, RestaurantTable, TableStatus
 
 
 def waiters_of(restaurant):
@@ -46,15 +46,21 @@ class FloorFilterForm(BootstrapFormMixin, forms.Form):
 
     section = forms.ModelChoiceField(queryset=RestaurantSection.objects.none(), required=False, empty_label="All sections")
     status = forms.ChoiceField(required=False, choices=[
-        ("", "Any status"), ("available", "Ready now"), *[
-            (value, label) for value, label in TableStatus.choices if value != TableStatus.INACTIVE
-        ],
+        ("", "Any state"), *DisplayState.choices, ("stale", "Please verify"),
     ])
     guests = forms.IntegerField(required=False, min_value=1, max_value=30, label="Guests",
                                 widget=forms.NumberInput(attrs={"placeholder": "Any"}))
 
-    def __init__(self, *args, restaurant=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    # Old status values in links keep working.
+    LEGACY = {"available": "free", "READY": "free", "OCCUPIED": "seated", "needs_cleaning": "dirty",
+              "VACANT_NEEDS_CLEARING": "dirty", "CLEANING_REQUIRED": "dirty", "CLEANING_IN_PROGRESS": "dirty",
+              "RESERVED": "unavailable", "BLOCKED": "unavailable"}
+
+    def __init__(self, data=None, *args, restaurant=None, **kwargs):
+        if data is not None and data.get("status") in self.LEGACY:
+            data = data.copy()
+            data["status"] = self.LEGACY[data["status"]]
+        super().__init__(data, *args, **kwargs)
         self.fields["section"].queryset = RestaurantSection.objects.filter(restaurant=restaurant)
 
     def filter(self, tables):
@@ -64,10 +70,10 @@ class FloorFilterForm(BootstrapFormMixin, forms.Form):
         data = self.cleaned_data
         if data["section"]:
             tables = [t for t in tables if t.section_id == data["section"].pk]
-        if data["status"] == "available":
-            tables = [t for t in tables if t.status == TableStatus.READY]
+        if data["status"] == "stale":
+            tables = [t for t in tables if getattr(t, "is_stale", False)]
         elif data["status"]:
-            tables = [t for t in tables if t.status == data["status"]]
+            tables = [t for t in tables if t.state == data["status"]]
         if data["guests"]:
             tables = [t for t in tables if t.capacity >= data["guests"]]
         return tables

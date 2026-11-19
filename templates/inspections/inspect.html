@@ -1,23 +1,32 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block content %}
-<div class="page-header">
-  <div>
-    <h2>Check {{ table.label }}</h2>
-    <p class="subtitle">{{ table.section.name }} · {{ table.capacity }} seats · now {% include "partials/status_badge.html" with status=table.status label=table.status_label %}</p>
-  </div>
+<div class="check-head">
+  <div class="check-table">{{ table.label }}</div>
+  <div class="text-body-secondary">{{ table.section.name }} · {{ table.capacity }} seats · now <strong>{{ table.state_label }}</strong>{% if table.timer %} · {{ table.timer.minutes|minutes_label }}{% endif %}</div>
 </div>
-<div class="row"><div class="col-lg-8 col-xl-6">
-  <form method="post" enctype="multipart/form-data" novalidate data-once>
+
+<h2 class="check-question-title">What do you see?</h2>
+<form method="post" class="quick-check" data-once>
+  {% csrf_token %}
+  <button class="quick-btn state-seated{% if table.state == 'seated' %} is-current{% endif %}" type="submit" name="quick" value="seated">
+    <i class="bi bi-people-fill" aria-hidden="true"></i><span>Seated</span><small>Guests at the table</small></button>
+  <button class="quick-btn state-dirty{% if table.state == 'dirty' %} is-current{% endif %}" type="submit" name="quick" value="dirty">
+    <i class="bi bi-cup-straw" aria-hidden="true"></i><span>Dirty</span><small>Empty, needs cleaning</small></button>
+  <button class="quick-btn state-free{% if table.state == 'free' %} is-current{% endif %}" type="submit" name="quick" value="ready">
+    <i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Ready</span><small>Clean, chairs set, free</small></button>
+</form>
+
+<details class="check-more"{% if form.errors %} open{% endif %}>
+  <summary>More detail: questions, remarks and photos</summary>
+  <form method="post" enctype="multipart/form-data" novalidate data-once class="mt-3">
     {% csrf_token %}
     {% include "partials/form_errors.html" %}
-    <p class="small text-body-secondary">The answers are pre-filled with what the system currently knows. Change anything that is different.</p>
     {% include "inspections/_questions.html" %}
     <div class="mt-3">{% include "partials/form_field.html" with field=form.remarks %}</div>
     {% include "partials/form_field.html" with field=form.photos %}
-    <div class="sticky-actions">
-      <a class="btn btn-outline-secondary" href="{{ table.get_absolute_url }}">Cancel</a>
-      <button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save check</button>
-    </div>
+    <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save detailed check</button>
   </form>
-</div></div>
+</details>
+<p class="mt-3"><a href="{{ table.get_absolute_url }}">Table details and history</a></p>
 {% endblock %}

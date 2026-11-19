@@ -2,7 +2,9 @@
 <ul class="nav nav-underline settings-nav mb-3">
   {% if is_manager_user %}
     <li class="nav-item"><a class="nav-link{% if settings_tab == 'restaurant' %} active{% endif %}" href="{% url 'core:restaurant_settings' %}">Restaurant</a></li>
+    <li class="nav-item"><a class="nav-link{% if settings_tab == 'tables' %} active{% endif %}" href="{% url 'tables:manage' %}">Tables &amp; QR</a></li>
     <li class="nav-item"><a class="nav-link{% if settings_tab == 'sections' %} active{% endif %}" href="{% url 'core:sections' %}">Sections</a></li>
+    <li class="nav-item"><a class="nav-link{% if settings_tab == 'staff' %} active{% endif %}" href="{% url 'accounts:staff_list' %}">Staff</a></li>
     <li class="nav-item"><a class="nav-link{% if settings_tab == 'cameras' %} active{% endif %}" href="{% url 'cctv:camera_list' %}">Cameras &amp; AI</a></li>
   {% endif %}
   <li class="nav-item"><a class="nav-link{% if settings_tab == 'profile' %} active{% endif %}" href="{% url 'accounts:profile' %}">My profile</a></li>

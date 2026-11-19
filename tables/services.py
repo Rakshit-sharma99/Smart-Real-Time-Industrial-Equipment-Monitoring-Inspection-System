@@ -25,8 +25,9 @@ from notifications import services as notifications
 from notifications.models import Notification
 from reservations.models import Reservation
 from tasks.models import WaiterTask
+from core.templatetags.ui import clock
 
-from .models import NEEDS_CLEANING_STATUSES, RestaurantTable, TableStatus, TableStatusHistory, compute_status
+from .models import DISPLAY_STATE, NEEDS_CLEANING_STATUSES, Cleanliness, DisplayState, RestaurantTable, TableStatus, TableStatusHistory, compute_status
 
 # A status change within this window before a booking is flagged to the receptionists.
 BOOKING_ALERT_WINDOW = timedelta(hours=3)
@@ -52,7 +53,7 @@ def live_tables(restaurant, now=None):
     ).order_by("start_at")
     return (
         RestaurantTable.objects.filter(restaurant=restaurant)
-        .select_related("section", "assigned_waiter")
+        .select_related("restaurant", "section", "assigned_waiter")
         .annotate(
             cleaning_in_progress=Exists(in_progress),
             reservation_hold=Exists(holding),
@@ -83,13 +84,55 @@ def status_of(table, now=None):
     )
 
 
-def with_status(tables):
-    """Evaluate tables (ideally from live_tables) and attach .status and .status_label."""
+def with_status(tables, now=None):
+    """Evaluate tables (ideally from live_tables) and attach .status, .status_label, .timer and .is_stale."""
+    now = now or timezone.now()
     result = list(tables)
     for table in result:
         table.status = status_of(table)
         table.status_label = TableStatus(table.status).label
+        table.state = DISPLAY_STATE[table.status]
+        table.state_label = DisplayState(table.state).label
+        table.cleaning_now = table.status == TableStatus.CLEANING_IN_PROGRESS
+        table.timer = table_timer(table, table.status, now)
+        table.is_stale = bool(table.timer and table.timer["level"] == "stale")
+        # Red means "act now": seated too long, cleaning overdue, or nobody has confirmed it.
+        table.over_limit = bool(table.timer and table.timer["level"] in ("late", "stale"))
     return result
+
+
+DIRTY_STATUSES = (*NEEDS_CLEANING_STATUSES, TableStatus.CLEANING_IN_PROGRESS)
+WARN_SHARE = 0.75  # a timer turns amber at 75 % of its limit and red at 100 %
+
+
+def table_timer(table, status, now=None):
+    """
+    How long a seated table has been seated (against the sitting length) or a
+    dirty table has been dirty (against the cleaning deadline). None for other
+    tables. level: ok | warn | late | stale - stale means nobody has confirmed
+    the table for so long that its state is probably wrong.
+    """
+    now = now or timezone.now()
+    restaurant = table.restaurant
+    if status == TableStatus.OCCUPIED and table.occupied_since:
+        kind, since, limit = "seated", table.occupied_since, restaurant.reservation_minutes
+    elif status in DIRTY_STATUSES and table.dirty_since:
+        kind, since, limit = "dirty", table.dirty_since, restaurant.cleaning_deadline_minutes
+    else:
+        return None
+    # A fresh inspection confirms the state, so staleness counts from the latest confirmation.
+    confirmed = max(since, table.last_inspected_at) if table.last_inspected_at else since
+    minutes = max(0, (now - since).total_seconds() / 60)
+    if (now - confirmed).total_seconds() / 60 >= restaurant.stale_after_minutes:
+        level = "stale"
+    elif minutes >= limit:
+        level = "late"
+    elif minutes >= limit * WARN_SHARE:
+        level = "warn"
+    else:
+        level = "ok"
+    return {"kind": kind, "since": since, "minutes": int(minutes), "limit": limit, "level": level,
+            "stale_after": restaurant.stale_after_minutes, "confirmed": confirmed}
 
 
 def floor_summary(tables):
@@ -107,8 +150,15 @@ def floor_summary(tables):
         "needs_cleaning": counts[TableStatus.VACANT_NEEDS_CLEARING] + counts[TableStatus.CLEANING_REQUIRED],
         "cleaning": counts[TableStatus.CLEANING_IN_PROGRESS],
         "blocked": blocked,
+        "stale": sum(1 for t in active if getattr(t, "is_stale", False)),
+        "unassigned": sum(1 for t in active if t.assigned_waiter_id is None),
         "vacant": len(active) - occupied - blocked,
         "seats_ready": sum(t.capacity for t in active if t.status == TableStatus.READY),
+        # The four display states; they always add up to "total".
+        "free": counts[TableStatus.READY],
+        "seated": occupied,
+        "dirty": sum(counts[s] for s in DIRTY_STATUSES),
+        "unavailable": counts[TableStatus.RESERVED] + blocked,
     }
 
 
@@ -136,6 +186,16 @@ def change_table_state(table, *, source, user=None, note="", is_occupied=None, c
         now = timezone.now()
         if changed:
             table.status_updated_at = now
+            # Timers: a new sitting starts when guests sit down, a new mess when a clean table gets dirty.
+            if not table.is_occupied:
+                table.occupied_since = None
+            elif table.occupied_since is None:
+                table.occupied_since = now
+            # The dirty timer runs only while the table is empty and not clean (it starts when guests leave).
+            if table.cleanliness == Cleanliness.CLEAN or table.is_occupied:
+                table.dirty_since = None
+            elif table.dirty_since is None:
+                table.dirty_since = now
         if inspected:
             table.last_inspected_at = now
         table.save()
@@ -192,7 +252,7 @@ def notify_status_change(table, before, after):
             notifications.notify_roles(
                 restaurant, [Role.RECEPTIONIST, Role.MANAGER], kind=Notification.Kind.BOOKING_AFFECTED,
                 title=f"{table.label} is now {label}",
-                message=f"Booking {soon.reference} at {timezone.localtime(soon.start_at):%H:%M} uses this table.",
+                message=f"Booking {soon.reference} at {clock(soon.start_at)} uses this table.",
                 link=reverse("reservations:detail", args=[soon.pk]),
             )
 

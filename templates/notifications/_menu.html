@@ -1,4 +1,4 @@
-<div data-unread="{{ unread_notifications|default:0 }}">
+{% load ui %}<div data-unread="{{ unread_notifications|default:0 }}">
   <div class="menu-head">
     <span>Notifications</span>
     {% if unread_notifications %}
@@ -13,7 +13,7 @@
       <button class="notification-item{% if not n.is_read %} unread{% endif %}" type="submit">
         <div class="n-title">{{ n.title }}</div>
         {% if n.message %}<div class="small">{{ n.message }}</div>{% endif %}
-        <div class="n-meta">{{ n.created_at|timesince }} ago</div>
+        <div class="n-meta">{{ n.created_at|when }}</div>
       </button>
     </form>
   {% empty %}

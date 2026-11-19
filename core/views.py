@@ -5,13 +5,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
 
 from accounts.models import Role
-from tables import services as table_services
-from tables.forms import waiters_of
 from tables.models import RestaurantSection
 
 from . import services
 from .forms import RestaurantForm, SectionForm
-from .permissions import manager_required, staff_required
+from .floor import floor_screen, live_context
+from .permissions import booking_staff_required, manager_required, staff_required
 
 
 @staff_required
@@ -24,36 +23,18 @@ def home(request):
     return redirect("core:manager_dashboard")
 
 
-# --- Manager dashboard -----------------------------------------------------------------
-
-
-def overview_context(request):
-    """Stats, attention list and floor - the live part of the Overview."""
-    tables = table_services.with_status(table_services.live_tables(request.restaurant).filter(is_active=True))
-    return {
-        "stats": services.overview_stats(tables),
-        "attention": services.attention_items(request.restaurant, tables),
-        "floor_sections": services.floor_by_section(tables),
-        "waiters": waiters_of(request.restaurant),
-    }
+# --- Floor (manager dashboard and booking desk are the same screen) -----------------------
 
 
 @manager_required
 def manager_dashboard(request):
-    services.run_periodic_checks(request.restaurant)
-    context = {"page_title": "Overview", **overview_context(request), **services.side_panels(request.restaurant)}
-    return render(request, "core/manager_dashboard.html", context)
+    return floor_screen(request)
 
 
-@manager_required
+@booking_staff_required
 def fragment_overview(request):
     services.run_periodic_checks(request.restaurant)
-    return render(request, "core/_overview_live.html", overview_context(request))
-
-
-@manager_required
-def fragment_panels(request):
-    return render(request, "core/_panels.html", services.side_panels(request.restaurant))
+    return render(request, "core/_floor_live.html", live_context(request))
 
 
 # --- Settings -------------------------------------------------------------------------------

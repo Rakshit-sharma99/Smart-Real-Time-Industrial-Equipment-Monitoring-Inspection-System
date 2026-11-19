@@ -9,7 +9,7 @@
     <nav class="sidebar-nav" aria-label="Main">
       {% for item in nav_items %}
         <a class="sidebar-link{% if nav_active == item.key %} active{% endif %}" href="{% url item.url_name %}"{% if nav_active == item.key %} aria-current="page"{% endif %}>
-          <i class="bi {{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>
+          <i class="bi {{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>{% with count=nav_badges|lookup:item.key %}{% if count %}<span class="nav-badge" aria-label="{{ count }} waiting">{{ count }}</span>{% endif %}{% endwith %}
         </a>
       {% endfor %}
     </nav>

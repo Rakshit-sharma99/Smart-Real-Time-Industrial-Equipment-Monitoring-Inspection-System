@@ -26,12 +26,19 @@
   };
   let paused = false;
   let lastFrameAt = null;
+  let cameraStatus = null;
 
   function setStatus(state) {
     statusEl.textContent = state.status_label;
     statusEl.className = "cctv-status st-" + state.status.toLowerCase();
-    if (liveBadge) liveBadge.classList.toggle("off", state.status !== "ONLINE");
+    if (liveBadge) {
+      const receiving = state.status === "ONLINE" || state.status === "DEMO";
+      liveBadge.classList.toggle("off", !receiving);
+      liveBadge.classList.toggle("d-none", state.status === "DEMO");
+      liveBadge.textContent = state.status === "ONLINE" ? "LIVE" : state.status === "UNKNOWN" ? "NOT STARTED" : "OFFLINE";
+    }
     lastFrameAt = state.last_frame_at;
+    cameraStatus = state.status;
     if (state.detector) {
       detectorEl.innerHTML = "Detector: " + escapeHtml(state.detector) + " · dishes " +
         (state.detects_dishes ? "detectable" : "<em>not detectable</em>");
@@ -56,7 +63,8 @@
     overlay.innerHTML = "";
     labels.innerHTML = "";
     state.zones.forEach(function (zone) {
-      const color = COLORS[zone.status] || "#9ca3af";
+      const offline = cameraStatus === "OFFLINE" || cameraStatus === "UNKNOWN";
+      const color = offline ? "#6b7280" : (COLORS[zone.status] || "#9ca3af");
       const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       polygon.setAttribute("points", zone.points.map((p) => (p[0] * 1000) + "," + (p[1] * 1000)).join(" "));
       polygon.setAttribute("fill", color);
@@ -71,7 +79,7 @@
       label.style.left = (Math.min.apply(null, xs) * 100) + "%";
       label.style.top = (Math.min.apply(null, ys) * 100) + "%";
       label.style.borderColor = color;
-      let text = zone.table + " — " + (SHORT[zone.status] || zone.status_label || "?");
+      let text = zone.table + " — " + (SHORT[zone.status] || zone.status_label || "?") + (offline ? " (last known)" : "");
       const extra = [];
       if (zone.people !== null && zone.people !== undefined) extra.push(zone.people + " 👤");
       if (zone.dishes) extra.push(zone.dishes + " 🍽");
@@ -81,9 +89,15 @@
   }
 
   function tickClock() {
-    if (!lastFrameAt) { lastFrameEl.textContent = "never"; return; }
+    if (!lastFrameAt) { lastFrameEl.textContent = "No frame received yet"; return; }
     const seconds = Math.max(0, Math.round((Date.now() - new Date(lastFrameAt).getTime()) / 1000));
-    lastFrameEl.textContent = seconds < 2 ? "just now" : seconds + " s ago";
+    if (cameraStatus === "OFFLINE") {
+      const when = new Date(lastFrameAt);
+      lastFrameEl.innerHTML = '<span class="cctv-offline-for">Offline for ' + (seconds < 60 ? seconds + " s" : RS.formatMinutes(seconds / 60)) + "</span> · last frame " +
+        when.toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      return;
+    }
+    lastFrameEl.textContent = "Last frame: " + (seconds < 2 ? "just now" : seconds < 60 ? seconds + " s ago" : RS.formatMinutes(seconds / 60) + " ago");
   }
 
   async function refresh() {

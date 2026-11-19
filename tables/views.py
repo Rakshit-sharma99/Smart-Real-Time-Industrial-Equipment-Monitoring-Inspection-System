@@ -16,7 +16,7 @@ from tasks.models import WaiterTask
 
 from . import services
 from .forms import AssignWaiterForm, BlockForm, FloorFilterForm, OverrideForm, TableForm
-from .models import RestaurantTable, TableStatus
+from .models import DisplayState, RestaurantTable, TableStatus
 
 
 # --- Floor plan ------------------------------------------------------------------------
@@ -36,7 +36,7 @@ def floor_context(request):
         "floor_count": len(shown),
         "floor_summary": services.floor_summary(tables),
         "floor_query": request.GET.urlencode(),
-        "legend": [(value, label) for value, label in TableStatus.choices if value != TableStatus.INACTIVE],
+        "legend": DisplayState.choices,
     }
 
 
@@ -160,7 +160,7 @@ def set_active(request, pk):
 
 @manager_required
 def manage(request):
-    tables = services.with_status(services.live_tables(request.restaurant).order_by("section__sort_order", "number"))
+    tables = services.with_status(services.live_tables(request.restaurant).order_by("number"))
     return render(request, "tables/manage.html", {"tables": tables, "page_title": "Tables & QR codes"})
 
 

@@ -54,7 +54,7 @@ class BookingForm(BookingSearchForm):
 
 
 class WalkInForm(BootstrapFormMixin, forms.Form):
-    table = forms.ModelChoiceField(queryset=RestaurantTable.objects.none(), empty_label="Choose a Ready table")
+    table = forms.ModelChoiceField(queryset=RestaurantTable.objects.none(), empty_label="Choose a free table")
     guests = forms.IntegerField(min_value=1, max_value=30)
     customer_name = forms.CharField(max_length=100, required=False, label="Name (optional)")
 
@@ -62,7 +62,7 @@ class WalkInForm(BootstrapFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["table"].queryset = RestaurantTable.objects.filter(restaurant=restaurant, is_active=True)
         if ready_tables is not None:
-            self.fields["table"].choices = [("", "Choose a Ready table")] + [
+            self.fields["table"].choices = [("", "Choose a free table")] + [
                 (t.pk, f"{t.label} · {t.capacity} seats · {t.section.name}") for t in ready_tables
             ]
 

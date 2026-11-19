@@ -99,6 +99,38 @@
     form.dataset.submitting = "1";
   });
 
+  /** 42 -> "42 min", 125 -> "2 h 5 min", 3000 -> "2 days". Mirrors format_minutes in core/templatetags/ui.py. */
+  RS.formatMinutes = function (minutes) {
+    minutes = Math.max(0, Math.floor(minutes));
+    if (minutes < 60) return minutes + " min";
+    if (minutes < 1440) {
+      const h = Math.floor(minutes / 60), m = minutes % 60;
+      return m ? h + " h " + m + " min" : h + " h";
+    }
+    const days = Math.floor(minutes / 1440);
+    return days + (days === 1 ? " day" : " days");
+  };
+
+  // Seated / dirty timers on table cards keep counting between live refreshes.
+  function tickTimers() {
+    const now = Date.now();
+    document.querySelectorAll("[data-timer]").forEach(function (el) {
+      const minutes = (now - new Date(el.dataset.since).getTime()) / 60000;
+      const sinceConfirmed = (now - new Date(el.dataset.confirmed || el.dataset.since).getTime()) / 60000;
+      const limit = Number(el.dataset.limit), stale = Number(el.dataset.stale);
+      const level = sinceConfirmed >= stale ? "stale" : minutes >= limit ? "late" : minutes >= limit * 0.75 ? "warn" : "ok";
+      el.className = el.className.replace(/\blevel-\w+/, "level-" + level);
+      const card = el.closest(".table-tile");
+      if (card) card.classList.toggle("over-limit", level === "late" || level === "stale");
+      const text = el.querySelector("[data-timer-text]");
+      if (text) {
+        const length = RS.formatMinutes(minutes);
+        text.textContent = el.hasAttribute("data-timer-prefix") ? (el.dataset.kind === "seated" ? "Seated · " : "Dirty · ") + length : length;
+      }
+    });
+  }
+  setInterval(tickTimers, 30000);
+
   // Progressive Web App: the service worker caches static files only (see /sw.js).
   if ("serviceWorker" in navigator && window.isSecureContext) {
     window.addEventListener("load", function () {

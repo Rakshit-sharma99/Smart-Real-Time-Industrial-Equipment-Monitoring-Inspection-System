@@ -25,7 +25,7 @@
     <div class="card">
       <div class="card-header">Manager actions</div>
       <div class="card-body d-grid gap-3">
-        <form method="post" action="{% url 'tables:assign_waiter' table.pk %}" class="d-flex gap-2 align-items-end">
+        <form method="post" action="{% url 'tables:assign_waiter' table.pk %}" class="d-flex gap-2 align-items-end" id="waiter">
           {% csrf_token %}
           <div class="flex-grow-1"><label class="form-label small" for="{{ assign_form.waiter.id_for_label }}">Responsible waiter</label>{{ assign_form.waiter }}</div>
           <button class="btn btn-outline-primary" type="submit">Assign</button>
@@ -45,7 +45,7 @@
         {% endif %}
 
         <details>
-          <summary class="fw-semibold">Override status (audited)</summary>
+          <summary class="fw-semibold">Change status manually</summary>
           <form method="post" action="{% url 'tables:override' table.pk %}" class="mt-2" data-confirm="Override the state of {{ table.label }}? Your name and reason go into the audit log." data-confirm-button="Override" data-confirm-tone="primary">
             {% csrf_token %}
             <div class="row g-2">
@@ -97,7 +97,7 @@
           <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
             <thead><tr><th scope="col">When</th><th scope="col">By</th><th scope="col">Seated</th><th scope="col">Dishes</th><th scope="col">Result</th></tr></thead>
             <tbody>{% for i in inspections %}
-              <tr><td class="text-nowrap">{% if is_manager_user or i.inspector_id == user.pk %}<a href="{% url 'inspections:detail' i.pk %}">{{ i.created_at|date:"d M H:i" }}</a>{% else %}{{ i.created_at|date:"d M H:i" }}{% endif %}</td>
+              <tr><td class="text-nowrap">{% if is_manager_user or i.inspector_id == user.pk %}<a href="{% url 'inspections:detail' i.pk %}">{{ i.created_at|when }}</a>{% else %}{{ i.created_at|when }}{% endif %}</td>
                 <td>{% if i.inspector %}{{ i.inspector|person_short }}{% else %}{{ i.get_source_display }}{% endif %}</td>
                 <td>{{ i.customers_present|yesno:"Yes,No" }}</td><td>{{ i.dishes_present|yesno:"Yes,No" }}</td>
                 <td>{% if i.resulting_status %}{% include "partials/status_badge.html" with status=i.resulting_status label=i.get_resulting_status_display %}{% endif %}</td></tr>
@@ -110,7 +110,7 @@
           <div class="card-body"><ol class="timeline">
             {% for h in history %}
             <li><span class="timeline-title">{% if h.from_status and h.from_status != h.to_status %}{{ h.get_from_status_display }} → {% endif %}{{ h.get_to_status_display }}</span>
-              <span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.get_source_display }}{% if h.changed_by %} · {{ h.changed_by|person }}{% endif %}</span>
+              <span class="timeline-time">{{ h.created_at|when }} · {{ h.get_source_display }}{% if h.changed_by %} · {{ h.changed_by|person }}{% endif %}</span>
               {% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
             {% endfor %}
           </ol></div>
@@ -133,7 +133,7 @@
           <div class="table-wrap"><div class="table-responsive"><table class="table table-sm align-middle">
             <thead><tr><th scope="col">Time</th><th scope="col">Guests</th>{% if show_customers %}<th scope="col">Customer</th>{% endif %}<th scope="col">Status</th></tr></thead>
             <tbody>{% for r in bookings %}
-              <tr><td class="text-nowrap">{% if show_customers %}<a href="{% url 'reservations:detail' r.pk %}">{{ r.start_at|date:"d M H:i" }}</a>{% else %}{{ r.start_at|date:"d M H:i" }}{% endif %}</td><td>{{ r.party_size }}</td>
+              <tr><td class="text-nowrap">{% if show_customers %}<a href="{% url 'reservations:detail' r.pk %}">{{ r.start_at|when }}</a>{% else %}{{ r.start_at|when }}{% endif %}</td><td>{{ r.party_size }}</td>
                 {% if show_customers %}<td>{{ r.customer_name }}</td>{% endif %}
                 <td>{% include "partials/status_badge.html" with status=r.status label=r.get_status_display %}</td></tr>
             {% endfor %}</tbody>

@@ -29,6 +29,10 @@ class Restaurant(models.Model):
     cleaning_deadline_minutes = models.PositiveSmallIntegerField(
         "Default cleaning deadline (minutes)", default=15, validators=[MinValueValidator(1), MaxValueValidator(240)]
     )
+    stale_after_minutes = models.PositiveSmallIntegerField(
+        "Flag a table as stale after (minutes)", default=240, validators=[MinValueValidator(30), MaxValueValidator(1440)],
+        help_text="A table that has been seated or waiting for cleaning this long is shown as 'Stale – please verify'.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -63,14 +67,37 @@ class RestaurantSection(models.Model):
 class TableStatus(models.TextChoices):
     """What staff see. Computed from the stored facts - never stored on the table itself."""
 
-    READY = "READY", "Ready"
-    OCCUPIED = "OCCUPIED", "Occupied"
+    # Staff see only four states (see DISPLAY_STATE): the three cleaning stages
+    # are all "Needs cleaning"; Reserved and Blocked are both "Unavailable".
+    READY = "READY", "Free"
+    OCCUPIED = "OCCUPIED", "Seated"
     RESERVED = "RESERVED", "Reserved"
-    VACANT_NEEDS_CLEARING = "VACANT_NEEDS_CLEARING", "Vacant – needs clearing"
-    CLEANING_REQUIRED = "CLEANING_REQUIRED", "Cleaning required"
-    CLEANING_IN_PROGRESS = "CLEANING_IN_PROGRESS", "Cleaning in progress"
+    VACANT_NEEDS_CLEARING = "VACANT_NEEDS_CLEARING", "Needs cleaning"
+    CLEANING_REQUIRED = "CLEANING_REQUIRED", "Needs cleaning"
+    CLEANING_IN_PROGRESS = "CLEANING_IN_PROGRESS", "Needs cleaning (cleaning…)"
     BLOCKED = "BLOCKED", "Blocked"
     INACTIVE = "INACTIVE", "Inactive"
+
+
+class DisplayState(models.TextChoices):
+    """The four states shown on cards, counts and filters."""
+
+    FREE = "free", "Free"
+    SEATED = "seated", "Seated"
+    DIRTY = "dirty", "Needs cleaning"
+    UNAVAILABLE = "unavailable", "Unavailable"
+
+
+DISPLAY_STATE = {
+    "READY": DisplayState.FREE,
+    "OCCUPIED": DisplayState.SEATED,
+    "VACANT_NEEDS_CLEARING": DisplayState.DIRTY,
+    "CLEANING_REQUIRED": DisplayState.DIRTY,
+    "CLEANING_IN_PROGRESS": DisplayState.DIRTY,
+    "RESERVED": DisplayState.UNAVAILABLE,
+    "BLOCKED": DisplayState.UNAVAILABLE,
+    "INACTIVE": DisplayState.UNAVAILABLE,
+}
 
 
 NEEDS_CLEANING_STATUSES = (TableStatus.VACANT_NEEDS_CLEARING, TableStatus.CLEANING_REQUIRED)
@@ -125,6 +152,9 @@ class RestaurantTable(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_tables"
     )
     last_inspected_at = models.DateTimeField(null=True, blank=True)
+    # When the current sitting / the current mess started. Drive the timers on the floor.
+    occupied_since = models.DateTimeField(null=True, blank=True)
+    dirty_since = models.DateTimeField(null=True, blank=True)
     status_updated_at = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

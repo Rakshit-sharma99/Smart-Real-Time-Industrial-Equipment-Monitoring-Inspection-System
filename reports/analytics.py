@@ -41,7 +41,8 @@ class OperationsReport:
     figures: list = field(default_factory=list)
     waiters: list = field(default_factory=list)
     daily: list = field(default_factory=list)
-    peak_hours: list = field(default_factory=list)  # [(hour, average occupied tables)]
+    peak_hours: list = field(default_factory=list)  # [(hour, average occupied tables)], opening hours only
+    capped_sittings: int = 0  # occupied stretches longer than the stale limit, counted only up to it
     inspections_by_source: list = field(default_factory=list)
 
 
@@ -86,6 +87,48 @@ def occupied_intervals(restaurant, start, end):
     return [(a, b) for a, b in clipped if b > a]
 
 
+def opening_windows(restaurant, start, end):
+    """[(open, close)] for every day of the period (a closing time after midnight belongs to the day it opened)."""
+    windows = []
+    day = timezone.localtime(start).date() - timedelta(days=1)
+    last = timezone.localtime(end).date()
+    while day <= last:
+        opened = timezone.make_aware(datetime.combine(day, restaurant.opens_at))
+        closed = timezone.make_aware(datetime.combine(day, restaurant.closes_at))
+        if closed <= opened:
+            closed += timedelta(days=1)
+        a, b = max(opened, start), min(closed, end)
+        if b > a:
+            windows.append((a, b))
+        day += timedelta(days=1)
+    return windows
+
+
+def within_opening_hours(intervals, windows):
+    """The parts of each interval that fall inside opening hours."""
+    result = []
+    for a, b in intervals:
+        for wa, wb in windows:
+            lo, hi = max(a, wa), min(b, wb)
+            if hi > lo:
+                result.append((lo, hi))
+    return result
+
+
+def cap_unverified(intervals, limit_minutes):
+    """A table 'occupied' for longer than the stale limit was most likely never marked free: count it only up to the limit."""
+    limit = timedelta(minutes=limit_minutes)
+    capped = [(a, min(b, a + limit)) for a, b in intervals]
+    return capped, sum(1 for a, b in intervals if b - a > limit)
+
+
+def opening_hours_of_day(restaurant):
+    """Hours of the day (0-23) that overlap opening hours, in opening order (11:00-23:00 -> 11..22)."""
+    minutes_from_first_hour = restaurant.open_hours_per_day * 60 + restaurant.opens_at.minute
+    count = min(24, int(-(-minutes_from_first_hour // 60)))  # ceil
+    return [(restaurant.opens_at.hour + i) % 24 for i in range(count)]
+
+
 def hourly_occupancy(intervals, days):
     """Average number of occupied tables for each hour of the day (local time)."""
     minutes_per_hour = defaultdict(float)
@@ -113,7 +156,8 @@ def operations_report(restaurant, start_date, end_date):
     )
     inspections = TableInspection.objects.for_restaurant(restaurant).filter(created_at__gte=start, created_at__lt=end)
     active_tables = RestaurantTable.objects.filter(restaurant=restaurant, is_active=True).count()
-    intervals = occupied_intervals(restaurant, start, end)
+    raw, report.capped_sittings = cap_unverified(occupied_intervals(restaurant, start, end), restaurant.stale_after_minutes)
+    intervals = within_opening_hours(raw, opening_windows(restaurant, start, end))
     occupied_minutes = sum(minutes_between(a, b) for a, b in intervals)
     open_minutes = days * restaurant.open_hours_per_day * 60
 
@@ -138,10 +182,11 @@ def operations_report(restaurant, start_date, end_date):
         Figure("Tasks overdue right now", WaiterTask.objects.for_restaurant(restaurant).overdue().count()),
         Figure("Inspections recorded", inspections.count()),
         Figure("Table utilisation", round(utilization, 1) if utilization is not None else None, "%", ESTIMATE,
-               note=f"occupied table-minutes ÷ ({active_tables} tables × {restaurant.open_hours_per_day:g} opening hours/day); "
-                    "assumes every table is usable all opening hours"),
+               note=f"occupied table-minutes within opening hours ÷ ({active_tables} tables × {restaurant.open_hours_per_day:g} "
+                    f"opening hours/day); a sitting is counted for at most {restaurant.stale_after_minutes} min (stale limit)"),
     ]
-    report.peak_hours = hourly_occupancy(intervals, days)
+    by_hour = dict(hourly_occupancy(intervals, days))
+    report.peak_hours = [(hour, by_hour[hour]) for hour in opening_hours_of_day(restaurant)]
 
     by_waiter = defaultdict(list)
     for task in tasks:

@@ -16,39 +16,64 @@ CHECK_INTERVAL_SECONDS = 60
 
 
 def overview_stats(tables):
-    """The four numbers at the top: tables carry .status (tables.services.with_status)."""
+    """The four state counts at the top (they add up to the total). Tables carry .status (with_status)."""
     summary = table_services.floor_summary(tables)
     return {
-        "occupied": summary["occupied"],
-        "available": summary["ready"],
-        "needs_cleaning": summary["needs_cleaning"] + summary["cleaning"],
-        "reserved": summary["reserved"],
+        "free": summary["free"],
+        "seated": summary["seated"],
+        "dirty": summary["dirty"],
+        "unavailable": summary["unavailable"],
+        "total": summary["total"],
+        "seated_pct": round(summary["seated"] / summary["total"] * 100) if summary["total"] else 0,
     }
+
+
+# "Needs you now", worst first. Ties: the one waiting longest first.
+CRITICAL, HIGH, MEDIUM, LOW = 0, 1, 2, 3
+SEVERITY_TONES = {CRITICAL: "danger", HIGH: "warning", MEDIUM: "neutral", LOW: "neutral"}
+
+
+def person_name(user):
+    return (user.first_name or user.username) if user else ""
 
 
 def attention_items(restaurant, tables):
     """
-    Tables that need the manager to act right now, each with the reason and
-    the action: dirty tables without an active task (assign a waiter), and
-    tasks past their deadline (chase the waiter).
+    The manager's to-do list: one line per problem with how long it has been
+    waiting and ONE action. Red items (stale, overdue) come first, then dirty
+    tables nobody is cleaning, tasks not started, long sittings and tables
+    without a responsible waiter.
     """
     now = timezone.now()
     active_tasks = WaiterTask.objects.for_restaurant(restaurant).active().select_related("assigned_to")
     tasks_by_table = {task.table_id: task for task in active_tasks}
     items = []
+
+    def add(table, severity, title, since, action, who="", task=None):
+        items.append({"table": table, "severity": severity, "tone": SEVERITY_TONES[severity], "title": title,
+                      "since": since, "minutes": max(0, int((now - since).total_seconds() // 60)),
+                      "who": who, "action": action, "task": task})
+
     for table in tables:
         task = tasks_by_table.get(table.pk)
-        if table.status in NEEDS_CLEANING_STATUSES and task is None:
-            reason = "Dishes remaining" if table.status == TableStatus.VACANT_NEEDS_CLEARING else "Cleaning required"
-            items.append({"table": table, "reason": reason, "action": "assign", "since": table.status_updated_at})
-        elif task is not None and task.due_at and task.due_at < now:
-            items.append({"table": table, "reason": f"Cleaning overdue · {task.assigned_to.get_full_name() or task.assigned_to.username}",
-                          "action": "task", "task": task, "since": task.due_at})
-        elif task is not None and task.status == WaiterTask.Status.ASSIGNED and not task.accepted_at \
-                and task.assigned_at and now - task.assigned_at > timedelta(minutes=5):
-            items.append({"table": table, "reason": f"Task not started · {task.assigned_to.get_full_name() or task.assigned_to.username}",
-                          "action": "task", "task": task, "since": task.assigned_at})
-    items.sort(key=lambda item: item["since"])
+        timer = getattr(table, "timer", None)
+        if getattr(table, "is_stale", False):
+            title = "seated, please verify" if timer["kind"] == "seated" else "dirty, please verify"
+            add(table, CRITICAL, title, timer["confirmed"], "verify", person_name(table.assigned_waiter))
+            continue
+        if task is not None and task.due_at and task.due_at < now:
+            add(table, CRITICAL, "cleaning overdue", task.due_at, "remind", person_name(task.assigned_to), task)
+        elif table.status in NEEDS_CLEANING_STATUSES and task is None:
+            add(table, HIGH, "dirty", timer["since"] if timer else table.status_updated_at, "assign",
+                person_name(table.assigned_waiter))
+        elif task is not None and task.status == WaiterTask.Status.ASSIGNED and not task.accepted_at                 and task.assigned_at and now - task.assigned_at > timedelta(minutes=5):
+            add(table, MEDIUM, "task not started", task.assigned_at, "remind", person_name(task.assigned_to), task)
+        if timer and timer["kind"] == "seated" and timer["level"] == "late":
+            add(table, HIGH, f"seated over {restaurant.reservation_minutes} min", timer["since"], "open",
+                person_name(table.assigned_waiter))
+        if table.assigned_waiter_id is None:
+            add(table, LOW, "has no waiter", table.created_at, "set_waiter")
+    items.sort(key=lambda item: (item["severity"], item["since"]))
     return items
 
 

@@ -12,7 +12,7 @@
             <td>{% include "partials/status_badge.html" with status=t.priority label=t.get_priority_display %}</td>
             <td>{% include "partials/status_badge.html" with status=t.status label=t.get_status_display %}</td>
             <td>{{ t.assigned_to|person:"—" }}</td>
-            <td class="text-nowrap small{% if t.is_overdue %} text-danger fw-semibold{% endif %}">{% if t.due_at %}{{ t.due_at|date:"H:i" }}{% if t.is_overdue %} overdue{% endif %}{% else %}—{% endif %}</td>
+            <td class="text-nowrap small{% if t.is_overdue %} text-danger fw-semibold{% endif %}">{% if t.due_at %}{{ t|due_label }}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

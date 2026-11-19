@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block content %}
 <div class="page-header">
   <div>
@@ -18,7 +19,7 @@
     <button class="notification-item{% if not n.is_read %} unread{% endif %}" type="submit">
       <div class="d-flex justify-content-between gap-2">
         <span class="n-title">{{ n.title }}</span>
-        <span class="n-meta text-nowrap">{{ n.created_at|date:"d M H:i" }}</span>
+        <span class="n-meta text-nowrap">{{ n.created_at|when }}</span>
       </div>
       {% if n.message %}<div class="small">{{ n.message }}</div>{% endif %}
       <div class="n-meta">{{ n.get_kind_display }}</div>

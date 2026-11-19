@@ -8,7 +8,7 @@
       {% include "partials/status_badge.html" with status=task.status label=task.get_status_display %}
       {% include "partials/status_badge.html" with status=task.priority label=task.get_priority_display %}
     </div>
-    <p class="subtitle">{{ task.get_task_type_display }} · <a href="{{ task.table.get_absolute_url }}">{{ task.table.label }}, {{ task.table.section.name }}</a>{% if task.due_at %} · due {{ task.due_at|date:"d M H:i" }}{% if task.is_overdue %} <span class="text-danger fw-semibold">overdue</span>{% endif %}{% endif %}</p>
+    <p class="subtitle">{{ task.get_task_type_display }} · <a href="{{ task.table.get_absolute_url }}">{{ task.table.label }}, {{ task.table.section.name }}</a>{% if task.due_at %} · <span class="{% if task.is_overdue %}text-danger fw-semibold{% endif %}">{{ task|due_label }}</span> <span class="small">({{ task.due_at|when }})</span>{% endif %}</p>
   </div>
   <a class="btn btn-outline-secondary" href="{% if is_waiter_user %}{% url 'tasks:waiter_home' %}{% else %}{% url 'tasks:list' %}{% endif %}">Back</a>
 </div>
@@ -31,7 +31,7 @@
         <form method="post" action="{% url 'tasks:complete' task.pk %}" novalidate data-once>
           {% csrf_token %}
           {% include "partials/form_errors.html" with form=complete_form %}
-          <p class="small text-body-secondary">Answer honestly: the table only becomes <strong>Ready</strong> when everything is cleared, clean and arranged.</p>
+          <p class="small text-body-secondary">Answer honestly: the table only becomes <strong>Free</strong> when everything is cleared, clean and arranged.</p>
           {% include "inspections/_questions.html" with form=complete_form %}
           <div class="mt-3">{% include "partials/form_field.html" with field=complete_form.remarks %}</div>
           <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Complete task</button>
@@ -50,7 +50,7 @@
     <div class="card">
       <div class="card-header">Manager</div>
       <div class="card-body d-grid gap-3">
-        <form method="post" action="{% url 'tasks:assign' task.pk %}" class="d-flex gap-2 align-items-end">
+        <form id="assign" method="post" action="{% url 'tasks:assign' task.pk %}" class="d-flex gap-2 align-items-end">
           {% csrf_token %}
           <div class="flex-grow-1"><label class="form-label small" for="{{ waiter_form.waiter.id_for_label }}">{% if task.assigned_to %}Reassign to{% else %}Assign to{% endif %}</label>{{ waiter_form.waiter }}</div>
           <button class="btn btn-outline-primary" type="submit">{% if task.assigned_to %}Reassign{% else %}Assign{% endif %}</button>
@@ -70,7 +70,7 @@
     {% if task.status == "COMPLETED" %}
     <div class="card"><div class="card-body">
       <dl class="detail-list">
-        <dt>Completed</dt><dd>{{ task.completed_at|date:"d M H:i" }}{% if task.duration_minutes is not None %} · {{ task.duration_minutes }} min of work{% endif %}</dd>
+        <dt>Completed</dt><dd>{{ task.completed_at|when }}{% if task.duration_minutes is not None %} · {{ task.duration_minutes }} min of work{% endif %}</dd>
         {% if task.completion_remarks %}<dt>Remarks</dt><dd>{{ task.completion_remarks }}</dd>{% endif %}
       </dl>
     </div></div>
@@ -82,16 +82,16 @@
       <div class="card-header">Details</div>
       <div class="card-body"><dl class="detail-list">
         <dt>Waiter</dt><dd>{{ task.assigned_to|person:"Unassigned" }}</dd>
-        <dt>Created</dt><dd>{{ task.created_at|date:"d M H:i" }} by {{ task.created_by|person }}</dd>
-        <dt>Assigned</dt><dd>{{ task.assigned_at|date:"d M H:i"|default:"—" }}</dd>
-        <dt>Started</dt><dd>{{ task.started_at|date:"d M H:i"|default:"—" }}</dd>
+        <dt>Created</dt><dd>{{ task.created_at|when }} by {{ task.created_by|person }}</dd>
+        <dt>Assigned</dt><dd>{{ task.assigned_at|when|default:"—" }}</dd>
+        <dt>Started</dt><dd>{{ task.started_at|when|default:"—" }}</dd>
       </dl></div>
     </div>
     <div class="card">
       <div class="card-header">History</div>
       <div class="card-body"><ol class="timeline">
         {% for h in history %}
-        <li><span class="timeline-title">{{ h.get_action_display }}</span><span class="timeline-time">{{ h.created_at|date:"d M H:i" }} · {{ h.changed_by|person:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
+        <li><span class="timeline-title">{{ h.get_action_display }}</span><span class="timeline-time">{{ h.created_at|when }} · {{ h.changed_by|person:"system" }}</span>{% if h.note %}<span class="timeline-note">{{ h.note }}</span>{% endif %}</li>
         {% endfor %}
       </ol></div>
     </div>

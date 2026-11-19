@@ -6,15 +6,20 @@ register = template.Library()
 # Status value -> colour tone (see .tone-* in app.css). Table-status colours
 # are reserved for table statuses; other workflows use the neutral tones.
 STATUS_TONES = {
-    # table status
+    # table status: four colours only (green free, blue seated, orange needs cleaning, grey unavailable)
     "READY": "ready",
     "OCCUPIED": "occupied",
-    "RESERVED": "reserved",
+    "RESERVED": "blocked",
     "VACANT_NEEDS_CLEARING": "clearing",
-    "CLEANING_REQUIRED": "dirty",
-    "CLEANING_IN_PROGRESS": "progress",
+    "CLEANING_REQUIRED": "clearing",
+    "CLEANING_IN_PROGRESS": "clearing",
     "BLOCKED": "blocked",
     "INACTIVE": "blocked",
+    # display states
+    "free": "ready",
+    "seated": "occupied",
+    "dirty": "clearing",
+    "unavailable": "blocked",
     # waiter tasks
     "OPEN": "neutral",
     "ASSIGNED": "info",
@@ -86,3 +91,76 @@ def person_short(user, fallback="—"):
     if user is None:
         return fallback
     return user.first_name or user.username
+
+
+def format_minutes(minutes):
+    """42 -> '42 min', 125 -> '2 h 5 min', 3000 -> '2 days'. Mirrors RS.formatMinutes in app.js."""
+    minutes = max(0, int(minutes))
+    if minutes < 60:
+        return f"{minutes} min"
+    if minutes < 24 * 60:
+        hours, rest = divmod(minutes, 60)
+        return f"{hours} h {rest} min" if rest else f"{hours} h"
+    days = minutes // (24 * 60)
+    return f"{days} day{'s' if days != 1 else ''}"
+
+
+@register.filter
+def minutes_label(value):
+    return format_minutes(value or 0)
+
+
+@register.filter
+def ago_label(value):
+    """A datetime -> '8 days', '3 h 5 min', '42 min' (time elapsed since, without 'ago')."""
+    if not value:
+        return ""
+    from django.utils import timezone
+    return format_minutes((timezone.now() - value).total_seconds() // 60)
+
+
+@register.filter
+def due_label(task):
+    """'Due 14:30', 'Due Tue 18 Nov 14:30' or 'Overdue by 8 days' - deadlines always carry their day."""
+    from django.utils import timezone
+    due = getattr(task, "due_at", None)
+    if not due:
+        return ""
+    now = timezone.now()
+    if getattr(task, "status", None) != "COMPLETED" and due < now:
+        return f"Overdue by {format_minutes((now - due).total_seconds() // 60)}"
+    local_due, today = timezone.localtime(due), timezone.localdate()
+    if local_due.date() == today:
+        return f"Due {clock(due)}"
+    return f"Due {local_due:%a} {local_due.day} {local_due:%b}, {clock(due)}"
+
+
+def clock(value):
+    """A datetime -> '8:30 PM' in local time."""
+    from django.utils import timezone
+    return timezone.localtime(value).strftime("%I:%M %p").lstrip("0")
+
+
+@register.filter(name="clock")
+def clock_filter(value):
+    return clock(value) if value else ""
+
+
+@register.filter
+def when(value):
+    """A datetime -> '9 Nov, 11:44 PM' (or 'Today, 11:44 PM'). Used instead of '1 week, 1 day ago'."""
+    if not value:
+        return ""
+    from django.utils import timezone
+    local = timezone.localtime(value)
+    day = "Today" if local.date() == timezone.localdate() else f"{local.day} {local:%b}"
+    return f"{day}, {clock(value)}"
+
+
+@register.filter
+def timer_text(timer):
+    """'Seated 42 min' / 'Dirty for 6 min' - the main line of a table card."""
+    if not timer:
+        return ""
+    length = format_minutes(timer["minutes"])
+    return f"Seated · {length}" if timer["kind"] == "seated" else f"Dirty · {length}"

@@ -30,6 +30,7 @@ from notifications import services as notifications
 from notifications.models import Notification
 from tables import services as table_services
 from tables.models import TableStatus, TableStatusHistory
+from core.templatetags.ui import clock
 
 from .models import WaiterTask, WaiterTaskHistory
 
@@ -138,7 +139,7 @@ def assign(task, waiter, *, user):
             [waiter], restaurant=task.restaurant, kind=Notification.Kind.TASK_ASSIGNED,
             title=f"New task {task.task_code}: {task.get_task_type_display()} at {task.table.label}",
             message=f"Priority {task.get_priority_display()}" + (
-                f", due {timezone.localtime(task.due_at):%H:%M}" if task.due_at else ""),
+                f", due {clock(task.due_at)}" if task.due_at else ""),
             link=link_for(task),
         )
     return task
@@ -318,9 +319,32 @@ def notify_overdue_tasks(restaurant):
             notifications.notify(
                 recipients, restaurant=restaurant, kind=Notification.Kind.TASK_OVERDUE,
                 title=f"Overdue: {task.task_code} {task.get_task_type_display()} at {task.table.label}",
-                message=f"Deadline was {timezone.localtime(task.due_at):%H:%M}; assigned to {name(task.assigned_to)}.",
+                message=f"Deadline was {clock(task.due_at)}; assigned to {name(task.assigned_to)}.",
                 link=link_for(task),
             )
             publish(task)
         count += 1
     return count
+
+
+def remind(task, *, user):
+    """A manager nudges the assigned waiter (one notification, logged in the task history)."""
+    notifications.notify(
+        [task.assigned_to], restaurant=task.restaurant, kind=Notification.Kind.TASK_OVERDUE if task.is_overdue
+        else Notification.Kind.TASK_ASSIGNED,
+        title=f"Reminder: {task.table.label} – {task.get_task_type_display()}",
+        message=f"From {name(user)}." + (" This task is overdue." if task.is_overdue else ""), link=link_for(task),
+    )
+    history(task, Action.PROGRESS, user, task.status,
+            note=f"Reminder sent to {name(task.assigned_to)}")
+    publish(task)
+    return task
+
+
+def finish(task, *, user):
+    """Start (if still assigned) and complete a task with the standard "clean and ready" check."""
+    from inspections.forms import AFTER_CLEANING
+    check = {key: value == "1" for key, value in AFTER_CLEANING.items()}
+    if task.status == Status.ASSIGNED:
+        task = start(task, user=user)
+    return complete(task, user=user, check=check)

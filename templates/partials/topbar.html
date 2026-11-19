@@ -4,7 +4,10 @@
   </button>
   <h1 class="topbar-title">{{ page_title }}</h1>
   <div class="topbar-actions">
-    <span class="live-indicator" id="liveIndicator" data-state="idle" role="status" title="Live updates: idle">
+    {% if offline_cameras %}
+    <a class="camera-alert" href="{% url 'cctv:console' %}" title="{{ offline_cameras|join:', ' }}"><i class="bi bi-camera-video-off" aria-hidden="true"></i><span>{% if offline_cameras|length == 1 %}Camera offline{% else %}{{ offline_cameras|length }} cameras offline{% endif %}</span></a>
+    {% endif %}
+    <span class="live-indicator" id="liveIndicator" data-state="idle" role="status" title="Live page updates (not camera status): idle">
       <span class="live-dot" aria-hidden="true"></span><span class="live-label d-none d-md-inline">Idle</span>
     </span>
     {% if user_role %}

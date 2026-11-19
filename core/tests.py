@@ -105,8 +105,9 @@ class RoleMatrixTests(StaffCase):
         self.assertNotContains(page, reverse("cctv:console"))
         self.client.force_login(self.manager)
         page = self.client.get(reverse("core:manager_dashboard"))
-        self.assertEqual(page.content.decode().count('class="sidebar-link'), 7)
-        self.assertContains(page, "Attention required")
+        self.assertEqual(page.content.decode().count('class="sidebar-link'), 5)
+        self.assertContains(page, "Needs you now")
+        self.assertContains(page, 'id="walkInDrawer"')  # the booking desk lives on the same screen
 
 
 class LoginTests(StaffCase):
@@ -152,13 +153,13 @@ class TableWorkflowPageTests(StaffCase):
         # 1. The assigned waiter inspects T12 after the guests leave.
         self.client.force_login(self.waiter)
         response = self.client.post(reverse("inspections:inspect", args=[self.table.pk]), self.answers(GUESTS_LEFT_CHECK, remarks="Dishes left"))
-        self.assertRedirects(response, self.table.get_absolute_url())
+        self.assertRedirects(response, reverse("tasks:waiter_home"))
         self.assertEqual(table_services.status_of(RestaurantTable.objects.get(pk=self.table.pk)), TableStatus.VACANT_NEEDS_CLEARING)
 
         # 2. The manager sees it and assigns a cleaning task.
         self.client.force_login(self.manager)
         overview = self.client.get(reverse("core:fragment_overview"))
-        self.assertContains(overview, "Dishes remaining")  # the attention list names T12
+        self.assertContains(overview, "T12</a> dirty")  # "Needs you now" names T12
         self.assertContains(overview, reverse("tasks:quick_assign"))
         response = self.client.post(reverse("tasks:create"), {
             "table": self.table.pk, "task_type": "FULL_RESET", "priority": "HIGH", "due_minutes": 15,
@@ -254,7 +255,7 @@ class ReservationPageTests(StaffCase):
         self.client.post(reverse("reservations:change_status", args=[booking.pk]), {"to_status": "CANCELLED"})
         self.assertEqual(table_services.status_of(RestaurantTable.objects.get(pk=self.table.pk)), TableStatus.READY)
         self.client.force_login(self.manager)
-        self.assertContains(self.client.get(reverse("core:fragment_panels")), "Booking desk")
+        self.assertContains(self.client.get(reverse("core:fragment_overview")), 'data-state="free"')
 
     def test_quick_assign_from_attention_list(self):
         inspections.record_inspection(self.table, self.waiter, **GUESTS_LEFT_CHECK)

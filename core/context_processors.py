@@ -3,7 +3,7 @@ from django.conf import settings
 from accounts.models import Role
 from notifications.models import Notification
 
-from .navigation import active_section, nav_items_for
+from .navigation import active_section, nav_badges, nav_items_for
 
 
 def app_context(request):
@@ -25,4 +25,11 @@ def app_context(request):
         inbox = Notification.objects.filter(recipient=user)
         context["unread_notifications"] = inbox.filter(is_read=False).count()
         context["latest_notifications"] = inbox[:8]
+    restaurant = getattr(request, "restaurant", None)
+    if role == Role.MANAGER and restaurant is not None:
+        from cctv.models import Camera
+        context["offline_cameras"] = [c.name for c in Camera.objects.filter(restaurant=restaurant, is_active=True)
+                                      if not c.is_receiving]
+        if request.resolver_match and not (request.resolver_match.url_name or "").endswith(("fragment", "_overview", "menu")):
+            context["nav_badges"] = nav_badges(request)
     return context

@@ -1,4 +1,4 @@
-{# Reservation table. Rendered inside a live fragment. #}
+{% load ui %}{# Reservation table. Rendered inside a live fragment. #}
 {% if reservations %}
 <div class="table-wrap"><div class="table-responsive">
   <table class="table table-hover align-middle">
@@ -7,7 +7,7 @@
       {% for r in reservations %}
       <tr>
         <td><a class="fw-semibold" href="{% url 'reservations:detail' r.pk %}">{{ r.reference }}</a>{% if r.source == "WALK_IN" %} <span class="badge text-bg-light border fw-normal">walk-in</span>{% endif %}</td>
-        <td class="text-nowrap">{{ r.start_at|date:"d M H:i" }}–{{ r.end_at|date:"H:i" }}</td>
+        <td class="text-nowrap">{{ r.start_at|when }}–{{ r.end_at|clock }}</td>
         <td>{{ r.customer_name }}<div class="small text-body-secondary">{{ r.phone }}</div></td>
         <td>{{ r.party_size }}</td>
         <td><a href="{{ r.table.get_absolute_url }}">{{ r.table.label }}</a></td>

@@ -24,6 +24,7 @@ from notifications import services as notifications
 from notifications.models import Notification
 from tables import services as table_services
 from tables.models import Cleanliness, RestaurantTable, TableStatus, TableStatusHistory
+from core.templatetags.ui import clock, when
 
 from .models import Reservation, ReservationHistory
 
@@ -121,8 +122,8 @@ def create_reservation(*, restaurant, table, customer_name, party_size, start_at
         clash = conflicts(table, start_at, end_at).first()
         if clash:
             raise BookingConflict({"table": (
-                f"{table.label} is already booked {timezone.localtime(clash.start_at):%d %b %H:%M}"
-                f"–{timezone.localtime(clash.end_at):%H:%M} ({clash.reference})."
+                f"{table.label} is already booked {when(clash.start_at)}"
+                f"–{clock(clash.end_at)} ({clash.reference})."
             )})
         before = table_services.status_of(table)
         reservation = Reservation.objects.create(
@@ -138,16 +139,16 @@ def create_reservation(*, restaurant, table, customer_name, party_size, start_at
                                          user=created_by, note=f"{reservation.reference} booked")
         publish(reservation)
         if source == Reservation.Source.BOOKING:
-            when = f"{timezone.localtime(start_at):%d %b %H:%M}"
+            booked_for = when(start_at)
             link = reverse("reservations:detail", args=[reservation.pk])
             notifications.notify_roles(
                 restaurant, [Role.MANAGER], kind=Notification.Kind.RESERVATION_CREATED,
-                title=f"New booking {reservation.reference}: {party_size} guests, {when}",
+                title=f"New booking {reservation.reference}: {party_size} guests, {booked_for}",
                 message=f"{table.label} for {customer_name}.", link=link,
             )
             notifications.notify(
                 [created_by], restaurant=restaurant, kind=Notification.Kind.RESERVATION_CONFIRMED,
-                title=f"Booking {reservation.reference} confirmed", message=f"{table.label}, {when}.", link=link,
+                title=f"Booking {reservation.reference} confirmed", message=f"{table.label}, {booked_for}.", link=link,
             )
     return reservation
 
@@ -213,7 +214,7 @@ def change_status(reservation, to_status, user, note=""):
             notifications.notify_roles(
                 reservation.restaurant, [Role.MANAGER], kind=Notification.Kind.RESERVATION_CANCELLED,
                 title=f"Booking {reservation.reference} cancelled",
-                message=f"{table.label}, {timezone.localtime(reservation.start_at):%d %b %H:%M}.",
+                message=f"{table.label}, {when(reservation.start_at)}.",
                 link=reverse("reservations:detail", args=[reservation.pk]),
             )
     return reservation

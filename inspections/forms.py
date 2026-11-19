@@ -95,6 +95,16 @@ def initial_from_table(table):
     }
 
 
+# The three one-tap answers on the check page (the detailed questions stay available below them).
+QUICK_CHECKS = {
+    "seated": {"customers_present": True, "plates_present": False, "glasses_present": False, "leftovers_present": False,
+               "table_clean": True, "chairs_arranged": True, "ready_for_next": False},
+    "dirty": {"customers_present": False, "plates_present": True, "glasses_present": True, "leftovers_present": False,
+              "table_clean": False, "chairs_arranged": False, "ready_for_next": False},
+    "ready": {"customers_present": False, "plates_present": False, "glasses_present": False, "leftovers_present": False,
+              "table_clean": True, "chairs_arranged": True, "ready_for_next": True},
+}
+
 # Pre-filled answers when a waiter completes a task: the table should now be clear and ready.
 AFTER_CLEANING = {
     "customers_present": "0", "plates_present": "0", "glasses_present": "0", "leftovers_present": "0",

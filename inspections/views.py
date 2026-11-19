@@ -7,9 +7,10 @@ from django.views.generic import ListView
 from accounts.models import Role
 from core.permissions import RoleRequiredMixin, floor_staff_required
 from tables import services as table_services
+from tables.models import DISPLAY_STATE, DisplayState
 
 from . import services
-from .forms import InspectionFilterForm, InspectionForm, initial_from_table
+from .forms import QUICK_CHECKS, InspectionFilterForm, InspectionForm, initial_from_table
 from .models import TableInspection, TableInspectionPhoto
 
 
@@ -54,8 +55,18 @@ def inspect(request, pk):
     table = table_services.with_status([table])[0]
     if not table_services.can_inspect(request.user, table):
         raise PermissionDenied("This table is assigned to another waiter. Ask your manager if it should be yours.")
-    form = InspectionForm(request.POST or None, request.FILES or None, initial=initial_from_table(table))
-    if request.method == "POST" and form.is_valid():
+    quick = request.POST.get("quick") if request.method == "POST" else None
+    if quick in QUICK_CHECKS:
+        try:
+            inspection = services.record_inspection(table, request.user, **QUICK_CHECKS[quick])
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            messages.success(request, f"{table.label} is now {DisplayState(DISPLAY_STATE[inspection.resulting_status]).label}.")
+            return redirect("tasks:waiter_home" if request.role == Role.WAITER else table.get_absolute_url())
+    form = InspectionForm(None if quick else request.POST or None, None if quick else request.FILES or None,
+                          initial=initial_from_table(table))
+    if request.method == "POST" and not quick and form.is_valid():
         try:
             inspection = services.record_inspection(
                 table, request.user, remarks=form.cleaned_data["remarks"], photos=form.cleaned_data["photos"],
@@ -65,7 +76,7 @@ def inspect(request, pk):
             form.add_error(None, exc)
         else:
             messages.success(request, f"{table.label} checked: {inspection.get_resulting_status_display()}.")
-            return redirect(table)
+            return redirect("tasks:waiter_home" if request.role == Role.WAITER else table.get_absolute_url())
     return render(request, "inspections/inspect.html", {
         "form": form, "table": table, "page_title": f"Check {table.label}",
     })

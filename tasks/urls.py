@@ -19,4 +19,6 @@ urlpatterns = [
     path("<int:pk>/start/", views.start, name="start"),
     path("<int:pk>/progress/", views.progress, name="progress"),
     path("<int:pk>/complete/", views.complete, name="complete"),
+    path("<int:pk>/done/", views.done, name="done"),
+    path("<int:pk>/remind/", views.remind, name="remind"),
 ]
